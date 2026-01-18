@@ -1,0 +1,26 @@
+name: Notify main repo
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch update event
+        env:
+          GH_TOKEN: ${{ secrets.MAIN_REPO_TOKEN }}
+          REPO: yukin371/QingYu
+          SUBMODULE: Qingyu-Ai-Service
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "MAIN_REPO_TOKEN not set."
+            exit 1
+          fi
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/$REPO/dispatches \
+            -d "{\"event_type\":\"submodule-update\",\"client_payload\":{\"submodule\":\"$SUBMODULE\"}}"
