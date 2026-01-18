@@ -1,0 +1,75 @@
+[tool.poetry]
+name = "qingyu-ai-service"
+version = "0.1.0"
+description = "Qingyu AI Service - Phase3 v2.0 Implementation"
+authors = ["Qingyu Team"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+# FastAPI and Server
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.3"
+pydantic-settings = "^2.1.0"
+
+# gRPC
+grpcio = "^1.60.0"
+grpcio-tools = "^1.60.0"
+protobuf = "^4.25.1"
+
+# LangChain and LangGraph - Upgraded to 1.0
+langchain = "^1.0.0"
+langchain-core = "^1.0.0"
+langchain-openai = "^1.0.0"
+langchain-anthropic = "^1.0.0"
+langchain-google-genai = "^1.0.0"
+langchain-community = "^1.0.0"
+langgraph = "^1.0.0"
+langgraph-checkpoint-postgres = "^1.0.0"
+langsmith = "^1.0.0"
+
+# Vector Database
+pymilvus = "^2.3.4"
+
+# Embeddings
+sentence-transformers = "^2.3.1"
+torch = "^2.1.2"
+
+# Redis for Event Bus
+redis = "^5.0.1"
+
+# Logging
+structlog = "^24.1.0"
+
+# Testing
+pytest = "^7.4.4"
+pytest-asyncio = "^0.23.3"
+httpx = "^0.26.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.12.1"
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+ipython = "^8.19.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+

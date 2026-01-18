@@ -1,0 +1,24 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.0, pytest-7.4.4, pluggy-1.6.0 -- D:\Github\ÇàÓð\Qingyu_backend\python_ai_service\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\Github\ÇàÓð\Qingyu_backend\python_ai_service
+plugins: anyio-4.12.1, langsmith-0.6.3, asyncio-0.23.8
+asyncio: mode=strict
+collecting ... collected 34 items
+
+tests/memory/conversation/test_entity_memory.py::TestEntity::test_entity_creation PASSED [  2%]
+tests/memory/conversation/test_entity_memory.py::TestEntity::test_entity_with_custom_timestamps PASSED [  5%]
+tests/memory/conversation/test_entity_memory.py::TestEntity::test_entity_model_dump PASSED [  8%]
+tests/memory/conversation/test_entity_memory.py::TestEntityRelation::test_relation_creation PASSED [ 11%]
+tests/memory/conversation/test_entity_memory.py::TestEntityRelation::test_relation_with_confidence PASSED [ 14%]
+tests/memory/conversation/test_entity_memory.py::TestEntityRelation::test_relation_model_dump PASSED [ 17%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_initialization PASSED [ 20%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_initialization_with_custom_params PASSED [ 23%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_add_entity PASSED [ 26%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_add_multiple_entities PASSED [ 29%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_add_entity_duplicate_increments_count FAILED [ 32%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_get_entity PASSED [ 35%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_get_entity_not_found PASSED [ 38%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_get_entities_by_type PASSED [ 41%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_update_entity PASSED [ 44%]
+tests/memory/conversation/test_entity_memory.py::TestEntityMemory::test_update_nonexistent_entity 

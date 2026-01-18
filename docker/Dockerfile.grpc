@@ -1,0 +1,31 @@
+# Dockerfile for gRPC AI Service
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY proto/ ./proto/
+COPY src/ ./src/
+
+# Expose gRPC port
+EXPOSE 50051
+
+# Health check for gRPC
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost', 50051)); s.close()" || exit 1
+
+# Run gRPC server
+CMD ["python", "src/grpc_service/server.py", "--host", "0.0.0.0", "--port", "50051"]

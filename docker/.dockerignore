@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# Development
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+
+# Environment
+.env
+.env.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Models (exclude large files)
+models/
+*.pth
+*.bin
+*.safetensors
+
+# Logs
+*.log
+logs/
+

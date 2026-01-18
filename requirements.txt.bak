@@ -1,0 +1,50 @@
+# Generated from pyproject.toml
+# For environments without Poetry
+
+# FastAPI and Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# gRPC
+grpcio==1.60.0
+grpcio-tools==1.60.0
+protobuf==4.25.1
+
+# LangChain and LangGraph - Upgraded to 1.0
+langchain==1.0.0
+langchain-core==1.0.0
+langchain-openai==1.0.0
+langchain-anthropic==1.0.0
+langgraph==1.0.0
+langsmith==1.0.0
+
+# New Dependencies for LangChain 1.0
+langgraph-checkpoint-postgres==1.0.0  # Persistence support
+langchain-community==1.0.0  # Community integrations
+
+# Vector Database
+pymilvus==2.3.4
+
+# Embeddings
+sentence-transformers==2.3.1
+torch==2.8.0
+
+# Redis
+redis==5.2.1
+
+# HTTP Client
+aiohttp==3.9.1
+
+# Type Support
+typing-extensions==4.9.0
+
+# Logging
+structlog==24.1.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx==0.26.0
+
