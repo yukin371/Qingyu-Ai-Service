@@ -11,6 +11,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from .core import settings, get_logger, AIServiceException
 from .api.health import router as health_router
+from .api.chat import router as chat_router
+from .api.writing import router as writing_router
+from .api.quota import router as quota_router
 
 logger = get_logger(__name__)
 
@@ -114,7 +117,10 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # 注册路由
-app.include_router(health_router, prefix="/api/v1")
+app.include_router(health_router, prefix="/api/v1", tags=["Health"])
+app.include_router(chat_router, prefix="/api/v1/ai", tags=["Chat"])
+app.include_router(writing_router, prefix="/api/v1/ai", tags=["Writing"])
+app.include_router(quota_router, prefix="/api/v1/quota", tags=["Quota"])
 
 
 @app.get("/", tags=["Root"])
