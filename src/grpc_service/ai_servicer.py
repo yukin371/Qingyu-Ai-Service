@@ -34,14 +34,36 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
     提供Phase3专业Agent的gRPC接口
     """
 
-    def __init__(self):
-        """初始化服务"""
+    def __init__(self, db_pool=None, backend_client=None):
+        """初始化服务
+
+        Args:
+            db_pool: PostgreSQL 数据库连接池
+            backend_client: 后端 gRPC 客户端（用于同步）
+        """
         super().__init__()
         self.logger = logger
+        self.db_pool = db_pool
+        self.backend_client = backend_client
         self.outline_agent = None
         self.character_agent = None
         self.plot_agent = None
         self._initialize_agents()
+        self._initialize_quota_service()
+
+    def _initialize_quota_service(self):
+        """初始化配额服务"""
+        try:
+            from src.services.quota_service import QuotaService
+            if self.db_pool:
+                self.quota_service = QuotaService(self.db_pool)
+                self.logger.info("✅ 配额服务初始化成功")
+            else:
+                self.quota_service = None
+                self.logger.warning("⚠️ 未提供数据库连接池，配额服务将不可用")
+        except Exception as e:
+            self.logger.error(f"❌ 配额服务初始化失败: {e}")
+            self.quota_service = None
 
     def _initialize_agents(self):
         """初始化所有Agent"""
@@ -498,5 +520,142 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             return ai_service_pb2.HealthCheckResponse(
                 status="unhealthy",
                 checks={"error": str(e)},
+            )
+
+    # ============ 配额管理 RPC (v1.1.0) ============
+
+    async def ConsumeQuota(self, request, context):
+        """配额消费 RPC（供后端调用）
+
+        Args:
+            request: QuotaConsumptionRequest
+            context: gRPC context
+
+        Returns:
+            QuotaConsumptionResponse
+        """
+        try:
+            if not self.quota_service:
+                context.abort(
+                    grpc.StatusCode.UNAVAILABLE,
+                    "配额服务未初始化"
+                )
+
+            record_id = await self.quota_service.record_consumption(
+                user_id=request.user_id,
+                workflow_type=request.workflow_type,
+                tokens_used=request.tokens_used,
+                metadata=dict(request.metadata)
+            )
+
+            return ai_service_pb2.QuotaConsumptionResponse(
+                success=True,
+                message="Quota recorded successfully",
+                quota_remaining=0,  # 由后端计算
+                record_id=record_id
+            )
+
+        except Exception as e:
+            self.logger.error(f"❌ ConsumeQuota failed: {e}")
+            return ai_service_pb2.QuotaConsumptionResponse(
+                success=False,
+                message=str(e)
+            )
+
+    async def GetQuotaConsumption(self, request, context):
+        """查询配额消费
+
+        Args:
+            request: QuotaConsumptionQuery
+            context: gRPC context
+
+        Returns:
+            QuotaConsumptionResponse
+        """
+        try:
+            if not self.quota_service:
+                context.abort(
+                    grpc.StatusCode.UNAVAILABLE,
+                    "配额服务未初始化"
+                )
+
+            consumption = await self.quota_service.get_user_consumption(
+                user_id=request.user_id,
+                time_range=request.time_range or "day"
+            )
+
+            # 获取详细记录
+            records = await self.quota_service.get_consumption_records(
+                user_id=request.user_id,
+                limit=100
+            )
+
+            # 转换记录为 protobuf 格式
+            proto_records = []
+            for record in records:
+                proto_records.append(ai_service_pb2.QuotaRecord(
+                    id=record['id'],
+                    user_id=record['user_id'],
+                    workflow_type=record['workflow_type'],
+                    tokens_used=record['tokens_used'],
+                    consumed_at=record['consumed_at'].isoformat()
+                ))
+
+            return ai_service_pb2.QuotaConsumptionResponse(
+                success=True,
+                total_tokens=consumption,
+                total_records=len(proto_records),
+                records=proto_records
+            )
+
+        except Exception as e:
+            self.logger.error(f"❌ GetQuotaConsumption failed: {e}")
+            return ai_service_pb2.QuotaConsumptionResponse(
+                success=False,
+                error_message=str(e)
+            )
+
+    async def SyncQuotaToBackend(self, request, context):
+        """同步配额到后端
+
+        Args:
+            request: QuotaSyncRequest
+            context: gRPC context
+
+        Returns:
+            QuotaSyncResponse
+        """
+        if not self.backend_client:
+            return ai_service_pb2.QuotaSyncResponse(
+                synced_count=0,
+                failed_user_ids=list(request.user_ids),
+                message="Backend client not configured"
+            )
+
+        if not self.quota_service:
+            return ai_service_pb2.QuotaSyncResponse(
+                synced_count=0,
+                failed_user_ids=list(request.user_ids),
+                message="Quota service not configured"
+            )
+
+        try:
+            result = await self.quota_service.sync_to_backend(
+                self.backend_client,
+                list(request.user_ids)
+            )
+
+            return ai_service_pb2.QuotaSyncResponse(
+                synced_count=result["synced"],
+                failed_user_ids=result["failed"],
+                message=f"Synced {result['synced']} users"
+            )
+
+        except Exception as e:
+            self.logger.error(f"❌ SyncQuotaToBackend failed: {e}")
+            return ai_service_pb2.QuotaSyncResponse(
+                synced_count=0,
+                failed_user_ids=list(request.user_ids),
+                message=str(e)
             )
 
