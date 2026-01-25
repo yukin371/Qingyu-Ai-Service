@@ -60,12 +60,14 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             # 2. 构建 Prompt
             # 3. 调用 LLM
             # 4. 返回结果
+            now = timestamp_pb2.Timestamp()
+            now.GetCurrentTime()
 
             return ai_service_pb2.GenerateContentResponse(
                 content="TODO: Implement content generation",
                 tokens_used=0,
                 model=request.options.model if request.options else "gpt-4",
-                generated_at=int(timestamp_pb2.Timestamp().GetCurrentTime().seconds)
+                generated_at=int(now.seconds)
             )
 
         except Exception as e:
@@ -90,24 +92,34 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
 
         try:
             # 调用RAG服务
+            filters = request.filters if request.HasField("filters") else None
+            content_types = list(filters.doc_types) if filters and filters.doc_types else None
             results = await self.rag_service.search(
                 query_text=request.query,
                 project_id=request.project_id,
-                user_id=request.user_id or None,
-                content_types=list(request.content_types) if request.content_types else None,
+                content_types=content_types,
                 top_k=request.top_k or 5,
             )
 
             # 转换为gRPC响应
             rag_results = []
             for result in results:
+                metadata = result.get("metadata", {})
+                metadata = metadata if isinstance(metadata, dict) else {}
+                metadata = {str(key): str(value) for key, value in metadata.items()}
+                doc_type = (
+                    result.get("doc_type")
+                    or result.get("source")
+                    or metadata.get("doc_type")
+                    or ""
+                )
                 rag_results.append(
                     ai_service_pb2.RAGResult(
-                        text=result.get("text", ""),
+                        id=result.get("id") or result.get("document_id", ""),
+                        content=result.get("content", "") or result.get("text", ""),
                         score=result.get("score", 0.0),
-                        document_id=result.get("document_id", ""),
-                        chunk_id=result.get("chunk_id", ""),
-                        metadata=json.dumps(result.get("metadata", {})),
+                        doc_type=doc_type,
+                        metadata=metadata,
                     )
                 )
 
@@ -168,21 +180,44 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             "ExecuteAgent called",
             workflow_type=request.workflow_type,
             project_id=request.project_id,
-            task_length=len(request.task),
+            task_length=len(request.parameters.get("task", "")),
         )
 
         try:
+            parameters = dict(request.parameters) if request.parameters else {}
+            task = parameters.get("task", "")
+            context_raw = parameters.get("context", "")
+            tools_raw = parameters.get("tools", "")
+            user_id = parameters.get("user_id") or None
+            project_id = request.project_id or parameters.get("project_id") or None
+
             # 解析上下文
-            agent_context = json.loads(request.context) if request.context else {}
+            agent_context = {}
+            if context_raw:
+                try:
+                    agent_context = json.loads(context_raw)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "ExecuteAgent context parse failed, using empty context"
+                    )
+
+            tools = []
+            if tools_raw:
+                try:
+                    parsed_tools = json.loads(tools_raw)
+                    if isinstance(parsed_tools, list):
+                        tools = [str(tool) for tool in parsed_tools]
+                except json.JSONDecodeError:
+                    tools = [tool.strip() for tool in tools_raw.split(",") if tool.strip()]
 
             # 调用Agent服务
             result = await self.agent_service.execute(
                 agent_type=request.workflow_type,
-                task=request.task,
+                task=task,
                 context=agent_context,
-                tools=list(request.tools),
-                user_id=request.user_id or None,
-                project_id=request.project_id or None,
+                tools=tools,
+                user_id=user_id,
+                project_id=project_id,
             )
 
             logger.info(
@@ -532,4 +567,3 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
                 grpc.StatusCode.INTERNAL,
                 f"Failed to sync quota to backend: {str(e)}"
             )
-
