@@ -26,6 +26,7 @@ from src.agent_runtime.orchestration.middleware.base import (
     MiddlewarePipeline,
     MiddlewareResult,
 )
+from src.services.quota_service import QuotaService
 
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,7 @@ class AgentExecutor:
         tools: Optional[List[ITool]] = None,
         workflow: Optional[Any] = None,
         middleware_pipeline: Optional[MiddlewarePipeline] = None,
+        db_pool: Optional[Any] = None,
     ):
         """
         初始化执行器
@@ -158,6 +160,7 @@ class AgentExecutor:
             tools: 可选的工具列表
             workflow: 可选的 Workflow 实例
             middleware_pipeline: 可选的中间件管道
+            db_pool: 可选的数据库连接池（用于配额记录）
         """
         self.agent_id = agent_id
         self.config = config
@@ -165,6 +168,10 @@ class AgentExecutor:
         self.tools = tools or []
         self.workflow = workflow
         self.middleware_pipeline = middleware_pipeline or MiddlewarePipeline()
+        
+        # 初始化配额服务
+        self.db_pool = db_pool
+        self.quota_service = QuotaService(db_pool) if db_pool else None
 
         # 状态管理
         self._status = AgentStatus.IDLE
@@ -319,6 +326,32 @@ class AgentExecutor:
                 logger.debug("Saved context to memory")
             except Exception as e:
                 logger.error(f"Error saving to memory: {e}")
+        
+        # 记录配额消费（不中断主流程）
+        if self.quota_service and middleware_result.agent_result:
+            try:
+                tokens_used = self._calculate_tokens(middleware_result.agent_result, execution_time)
+                
+                # 从 context 中提取 user_id 和 workflow_type
+                user_id = getattr(context, 'user_id', 'unknown')
+                workflow_type = getattr(context, 'workflow_type', 'chat')
+                
+                # 记录配额消费
+                await self.quota_service.record_consumption(
+                    user_id=user_id,
+                    workflow_type=workflow_type,
+                    tokens_used=tokens_used,
+                    metadata={
+                        "agent_id": self.agent_id,
+                        "agent_type": getattr(context, 'agent_type', 'unknown'),
+                        "model": self.config.model if hasattr(self.config, 'model') else 'unknown',
+                        "duration": execution_time,
+                        "success": middleware_result.success,
+                    }
+                )
+                logger.info(f"Recorded quota consumption: user={user_id}, tokens={tokens_used}")
+            except Exception as e:
+                logger.error(f"Error recording quota consumption: {e}")
 
         # 构建统计信息
         stats = self._build_stats(middleware_result.agent_result, execution_time)
@@ -407,6 +440,51 @@ class AgentExecutor:
             stats.completion_tokens = agent_result.tokens_used.get("completion", 0)
 
         return stats
+
+    def _calculate_tokens(
+        self,
+        agent_result: AgentResult,
+        execution_time: float
+    ) -> int:
+        """
+        计算使用的 token 数量
+        
+        Args:
+            agent_result: Agent 执行结果
+            execution_time: 执行时间（秒）
+        
+        Returns:
+            int: 使用的 token 总数
+        """
+        # 优先使用 AgentResult 中记录的 token 使用量
+        if agent_result.tokens_used:
+            if isinstance(agent_result.tokens_used, dict):
+                return agent_result.tokens_used.get("total", 0)
+            elif isinstance(agent_result.tokens_used, int):
+                return agent_result.tokens_used
+        
+        # 如果没有记录，尝试从 output 中估算
+        # 粗略估算：输入 token + 输出 token
+        # 假设平均每个 token 约等于 4 个字符（英文）或 1.5 个字符（中文）
+        try:
+            if agent_result.output:
+                # 估算输出 token 数量
+                output_tokens = len(str(agent_result.output)) // 3
+                
+                # 估算输入 token 数量（从 context 中获取，这里使用保守估计）
+                input_tokens = 100  # 默认假设输入约 100 tokens
+                
+                # 总 token 数（输出 token 通常权重更高，因为需要更多计算）
+                total_tokens = input_tokens + int(output_tokens * 1.5)
+                
+                logger.debug(f"Calculated tokens: input={input_tokens}, output={output_tokens}, total={total_tokens}")
+                return total_tokens
+        except Exception as e:
+            logger.warning(f"Error calculating tokens from output: {e}")
+        
+        # 如果所有方法都失败，返回默认值
+        logger.warning("Unable to calculate tokens, using default estimate")
+        return 100
 
     # -------------------------------------------------------------------------
     # Streaming Execution
