@@ -9,6 +9,7 @@ from google.protobuf import timestamp_pb2
 
 from src.core.logger import get_logger
 from src.services.agent_service import AgentService
+from src.services.quota_service import QuotaService
 from src.services.rag_service import RAGService
 
 from . import ai_service_pb2, ai_service_pb2_grpc
@@ -23,18 +24,21 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
         self,
         agent_service: Optional[AgentService] = None,
         rag_service: Optional[RAGService] = None,
+        quota_service: Optional[QuotaService] = None,
     ):
         """初始化服务
 
         Args:
             agent_service: Agent服务实例
             rag_service: RAG服务实例
+            quota_service: 配额服务实例
         """
         logger.info("Initializing AIServicer")
 
         # 服务依赖
         self.agent_service = agent_service or AgentService()
         self.rag_service = rag_service or RAGService()
+        self.quota_service = quota_service  # 必须从外部注入
 
         logger.info("AIServicer initialized")
 
@@ -269,5 +273,263 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             return ai_service_pb2.HealthCheckResponse(
                 status="unhealthy",
                 checks={"error": str(e)}
+            )
+
+    async def ConsumeQuota(
+        self,
+        request: ai_service_pb2.QuotaConsumptionRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.QuotaConsumptionResponse:
+        """配额消费 RPC（供后端调用）
+
+        记录用户的 AI 服务配额消费
+
+        Args:
+            request: 配额消费请求
+                - user_id: 用户 ID
+                - workflow_type: 工作流类型 (chat, writing, creative)
+                - tokens_used: 使用的 token 数量
+                - metadata: 额外的元数据
+            context: gRPC 上下文
+
+        Returns:
+            QuotaConsumptionResponse: 配额消费响应
+                - success: 是否成功
+                - message: 响应消息
+                - record_id: 记录 ID
+        """
+        logger.info(
+            "ConsumeQuota called",
+            user_id=request.user_id,
+            workflow_type=request.workflow_type,
+            tokens_used=request.tokens_used
+        )
+
+        try:
+            # 参数验证
+            if not request.user_id:
+                await context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "user_id is required"
+                )
+
+            if not request.workflow_type:
+                await context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "workflow_type is required"
+                )
+
+            if request.tokens_used < 0:
+                await context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "tokens_used must be non-negative"
+                )
+
+            # 检查配额服务是否可用
+            if not self.quota_service:
+                logger.error("QuotaService not initialized")
+                await context.abort(
+                    grpc.StatusCode.INTERNAL,
+                    "Quota service not available"
+                )
+
+            # 调用 QuotaService 记录消费
+            metadata = dict(request.metadata) if request.metadata else {}
+            record_id = await self.quota_service.record_consumption(
+                user_id=request.user_id,
+                workflow_type=request.workflow_type,
+                tokens_used=request.tokens_used,
+                metadata=metadata
+            )
+
+            logger.info(
+                "ConsumeQuota completed",
+                user_id=request.user_id,
+                record_id=record_id,
+                tokens_used=request.tokens_used
+            )
+
+            return ai_service_pb2.QuotaConsumptionResponse(
+                success=True,
+                message=f"Quota consumption recorded successfully",
+                record_id=record_id
+            )
+
+        except Exception as e:
+            logger.error("ConsumeQuota failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to consume quota: {str(e)}"
+            )
+
+    async def GetQuotaConsumption(
+        self,
+        request: ai_service_pb2.QuotaConsumptionQuery,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.QuotaConsumptionResponse:
+        """查询配额消费
+
+        查询用户的配额消费统计和详细记录
+
+        Args:
+            request: 配额消费查询请求
+                - user_id: 用户 ID
+                - time_range: 时间范围 (day, week, month, all)
+                - workflow_type: 工作流类型过滤（可选）
+            context: gRPC 上下文
+
+        Returns:
+            QuotaConsumptionResponse: 配额消费响应
+                - success: 是否成功
+                - total_tokens: 总 token 数量
+                - total_records: 总记录数
+                - records: 消费记录列表
+        """
+        logger.info(
+            "GetQuotaConsumption called",
+            user_id=request.user_id,
+            time_range=request.time_range,
+            workflow_type=request.workflow_type
+        )
+
+        try:
+            # 参数验证
+            if not request.user_id:
+                await context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "user_id is required"
+                )
+
+            # 检查配额服务是否可用
+            if not self.quota_service:
+                logger.error("QuotaService not initialized")
+                await context.abort(
+                    grpc.StatusCode.INTERNAL,
+                    "Quota service not available"
+                )
+
+            # 获取总消费统计
+            time_range = request.time_range if request.time_range else "day"
+            total_tokens = await self.quota_service.get_user_consumption(
+                user_id=request.user_id,
+                time_range=time_range
+            )
+
+            # 获取消费记录列表
+            records_data = await self.quota_service.get_consumption_records(
+                user_id=request.user_id,
+                limit=100,
+                offset=0
+            )
+
+            # 过滤工作流类型（如果指定）
+            if request.workflow_type:
+                records_data = [
+                    r for r in records_data
+                    if r.get("workflow_type") == request.workflow_type
+                ]
+
+            # 转换为 gRPC 格式
+            records = []
+            for record in records_data:
+                records.append(
+                    ai_service_pb2.QuotaRecord(
+                        id=record.get("id", 0),
+                        user_id=record.get("user_id", ""),
+                        workflow_type=record.get("workflow_type", ""),
+                        tokens_used=record.get("tokens_used", 0),
+                        consumed_at=str(record.get("consumed_at", ""))
+                    )
+                )
+
+            logger.info(
+                "GetQuotaConsumption completed",
+                user_id=request.user_id,
+                total_tokens=total_tokens,
+                records_count=len(records)
+            )
+
+            return ai_service_pb2.QuotaConsumptionResponse(
+                success=True,
+                message=f"Retrieved {len(records)} consumption records",
+                total_tokens=total_tokens,
+                total_records=len(records),
+                records=records
+            )
+
+        except Exception as e:
+            logger.error("GetQuotaConsumption failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to get quota consumption: {str(e)}"
+            )
+
+    async def SyncQuotaToBackend(
+        self,
+        request: ai_service_pb2.QuotaSyncRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.QuotaSyncResponse:
+        """同步配额到后端
+
+        将用户的配额消费记录同步到后端系统
+
+        Args:
+            request: 配额同步请求
+                - user_ids: 用户 ID 列表
+                - force_sync: 是否强制同步
+            context: gRPC 上下文
+
+        Returns:
+            QuotaSyncResponse: 配额同步响应
+                - synced_count: 成功同步的用户数量
+                - failed_user_ids: 失败的用户 ID 列表
+                - message: 响应消息
+        """
+        logger.info(
+            "SyncQuotaToBackend called",
+            user_count=len(request.user_ids),
+            force_sync=request.force_sync
+        )
+
+        try:
+            # 参数验证
+            if not request.user_ids:
+                await context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "user_ids list is required"
+                )
+
+            # 检查配额服务是否可用
+            if not self.quota_service:
+                logger.error("QuotaService not initialized")
+                await context.abort(
+                    grpc.StatusCode.INTERNAL,
+                    "Quota service not available"
+                )
+
+            # 调用 QuotaService 同步到后端
+            # 注意：这里需要传入后端客户端，但当前 QuotaService.sync_to_backend
+            # 需要后端客户端作为参数，我们需要考虑如何处理
+            # 暂时返回未实现错误
+            logger.warning("SyncQuotaToBackend: backend client integration not yet implemented")
+
+            # TODO: 实现后端客户端集成
+            # result = await self.quota_service.sync_to_backend(
+            #     backend_client=self.backend_client,
+            #     user_ids=list(request.user_ids)
+            # )
+
+            # 临时返回成功响应
+            return ai_service_pb2.QuotaSyncResponse(
+                synced_count=0,
+                failed_user_ids=list(request.user_ids),
+                message="Backend sync not yet implemented"
+            )
+
+        except Exception as e:
+            logger.error("SyncQuotaToBackend failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to sync quota to backend: {str(e)}"
             )
 
