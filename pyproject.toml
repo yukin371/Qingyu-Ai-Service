@@ -80,6 +80,7 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-m 'not integration and not slow and not performance'"
 markers = [
     "integration: marks tests as integration tests",
