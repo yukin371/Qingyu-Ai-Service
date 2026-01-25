@@ -228,7 +228,7 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
 
             # 构建响应
             return ai_service_pb2.AgentExecutionResponse(
-                execution_id=f"exec-{request.project_id}",
+                execution_id=result.execution_id or f"exec-{project_id or 'unknown'}",
                 status=result.status,
                 result=result.output,
                 errors=[],  # TODO: 从result中提取errors
