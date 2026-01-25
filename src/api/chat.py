@@ -4,7 +4,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Optional
 
-from .models.chat import ChatRequest, ChatResponse, Message, Usage
+from src.api.models.chat import ChatRequest, ChatResponse, Message, Usage
 from ..services.agent_service import AgentService
 from ..core.logger import get_logger
 
