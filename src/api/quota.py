@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Dict
 from datetime import datetime, timedelta
 
-from ..api.models.quota import (
+from .models.quota import (
     QuotaInfo,
     ConsumeQuotaRequest,
     ConsumeQuotaResponse

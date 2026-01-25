@@ -4,7 +4,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Dict
 
-from ..api.models.writing import (
+from .models.writing import (
     WritingContext,
     ContinueWritingRequest,
     PolishRequest,
