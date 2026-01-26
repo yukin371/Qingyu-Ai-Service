@@ -53,8 +53,8 @@ logs/
 htmlcov/
 .tox/
 
-# Models (large files)
-models/
+# Models (large files) - only at root level
+/models/
 *.pth
 *.bin
 *.safetensors
