@@ -35,6 +35,8 @@ dependencies = [
     "torch>=2.1.2,<3.0.0",
     # Redis for Event Bus
     "redis>=5.0.1,<6.0.0",
+    # PostgreSQL for Quota Service
+    "asyncpg>=0.29.0,<0.30.0",
     # Logging
     "structlog>=24.1.0,<25.0.0",
     # Testing
