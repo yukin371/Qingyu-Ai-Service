@@ -68,23 +68,23 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
     def _initialize_agents(self):
         """初始化所有Agent"""
         try:
-            # 使用Gemini 2.0 Flash
+            # 使用智谱AI GLM-4-Flash（经济高效）
             self.outline_agent = OutlineAgent(
-                llm_provider="gemini",
-                llm_model="gemini-2.0-flash-exp",
+                llm_provider="zhipu",
+                llm_model="glm-4-flash",
                 temperature=0.7
             )
             self.character_agent = CharacterAgent(
-                llm_provider="gemini",
-                llm_model="gemini-2.0-flash-exp",
+                llm_provider="zhipu",
+                llm_model="glm-4-flash",
                 temperature=0.7
             )
             self.plot_agent = PlotAgent(
-                llm_provider="gemini",
-                llm_model="gemini-2.0-flash-exp",
+                llm_provider="zhipu",
+                llm_model="glm-4-flash",
                 temperature=0.7
             )
-            self.logger.info("✅ Phase3 Agents初始化成功")
+            self.logger.info("✅ Phase3 Agents初始化成功 (智谱AI GLM-4-Flash)")
         except Exception as e:
             self.logger.error(f"❌ Agent初始化失败: {e}")
             raise

@@ -47,20 +47,42 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
         logger.info(
             "generate_content_called",
             project_id=request.project_id,
-            chapter_id=request.chapter_id
+            chapter_id=request.chapter_id,
+            prompt_length=len(request.prompt) if request.prompt else 0
         )
 
         try:
-            # TODO: 实现内容生成逻辑
-            # 1. 获取上下文
-            # 2. 构建 Prompt
-            # 3. 调用 LLM
-            # 4. 返回结果
+            # 构建上下文
+            agent_context = {
+                "project_id": request.project_id,
+                "chapter_id": request.chapter_id,
+                "constraints": {
+                    "max_tokens": request.options.max_tokens if request.options else 2000,
+                    "temperature": request.options.temperature if request.options else 0.7,
+                }
+            }
+
+            # 调用Agent服务
+            result = await self.agent_service.execute(
+                agent_type="creative",
+                task=request.prompt or "请继续写作",
+                context=agent_context,
+                tools=["rag_tool"],
+                user_id=None,
+                project_id=request.project_id or None,
+            )
+
+            logger.info(
+                "generate_content_completed",
+                status=result.status,
+                output_length=len(result.output),
+                tokens_used=result.metadata.get("tokens_used", 0)
+            )
 
             return ai_service_pb2.GenerateContentResponse(
-                content="TODO: Implement content generation",
-                tokens_used=0,
-                model=request.options.model if request.options else "gpt-4",
+                content=result.output,
+                tokens_used=result.metadata.get("tokens_used", 0),
+                model=request.options.model if request.options else "glm-4",
                 generated_at=int(timestamp_pb2.Timestamp().GetCurrentTime().seconds)
             )
 

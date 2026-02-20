@@ -219,7 +219,7 @@ def create_initial_pipeline_state_v2(
         current_plan_index=0,
         
         # 工作区上下文
-        workspace_context=workspace_context.to_dict() if workspace_context else None,
+        workspace_context=workspace_context.to_dict() if hasattr(workspace_context, 'to_dict') else workspace_context,
         
         # 消息和推理
         messages=[],

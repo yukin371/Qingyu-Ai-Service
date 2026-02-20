@@ -1,0 +1,84 @@
+# ==============================================
+# Qingyu AI Service - Docker Compose
+# ==============================================
+# 用于启动青羽AI服务的完整开发环境
+# 使用: docker compose up -d ai-service
+# ==============================================
+
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.grpc
+    container_name: qingyu-ai-service
+    restart: unless-stopped
+    ports:
+      - "50052:50051"
+    env_file:
+      - .env
+    environment:
+      - GRPC_PORT=50051
+      - ENABLE_CHECKPOINTER=false
+      - EMBEDDING_MODEL_DEVICE=cpu
+    volumes:
+      - ./src:/app/src:ro
+      - ./proto:/app/proto:ro
+    networks:
+      - qingyu-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost', 50051)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: qingyu-ai-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - qingyu-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - full
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: qingyu-ai-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: qingyu_ai_service
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - qingyu-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - full
+
+networks:
+  qingyu-network:
+    driver: bridge
+    name: qingyu-ai-network
+
+volumes:
+  redis-data:
+    name: qingyu-ai-redis-data
+  postgres-data:
+    name: qingyu-ai-postgres-data

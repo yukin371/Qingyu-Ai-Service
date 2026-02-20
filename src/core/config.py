@@ -57,15 +57,23 @@ class Settings(BaseSettings):
         default="https://open.bigmodel.cn/api/paas/v4/",
         alias="ZHIPU_BASE_URL"
     )
-    zhipu_model: str = Field(default="glm-4", alias="ZHIPU_MODEL")
+    zhipu_model: str = Field(default="glm-4.7", alias="ZHIPU_MODEL")
+
+    # DeepSeek
+    deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
+    deepseek_base_url: str = Field(
+        default="https://api.deepseek.com",
+        alias="DEEPSEEK_BASE_URL"
+    )
+    deepseek_model: str = Field(default="deepseek-chat", alias="DEEPSEEK_MODEL")
 
     # Default LLM Provider
     default_llm_provider: str = Field(
-        default="zhipu",
+        default="deepseek",
         alias="DEFAULT_LLM_PROVIDER"
-    )  # openai, anthropic, gemini, zhipu
+    )  # openai, anthropic, gemini, zhipu, deepseek
     default_llm_model: str = Field(
-        default="glm-4",
+        default="deepseek-chat",
         alias="DEFAULT_LLM_MODEL"
     )
 

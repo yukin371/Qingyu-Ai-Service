@@ -5,82 +5,67 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Optional
 
 from ..api.models.chat import ChatRequest, ChatResponse, Message, Usage
-from ..services.agent_service import AgentService
+from ..llm.llm_factory import LLMFactory
 from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-# 依赖注入：获取AgentService实例
-async def get_agent_service():
-    """获取AgentService实例"""
-    # TODO: 实现单例或依赖注入
-    return AgentService()
-
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(
-    request: ChatRequest,
-    agent_service: AgentService = Depends(get_agent_service)
-):
+async def chat(request: ChatRequest):
     """
     AI对话接口
 
     处理用户对话请求，返回AI回复。
-
-    **请求示例**:
-    ```json
-    {
-      "messages": [
-        {"role": "user", "content": "你好"}
-      ],
-      "model": "gpt-4",
-      "temperature": 0.7,
-      "max_tokens": 2000
-    }
-    ```
-
-    **响应示例**:
-    ```json
-    {
-      "message": "你好！有什么可以帮助你的？",
-      "usage": {
-        "prompt_tokens": 10,
-        "completion_tokens": 20,
-        "total_tokens": 30
-      },
-      "model": "gpt-4",
-      "quota_remaining": 9970
-    }
-    ```
     """
     try:
         logger.info("chat_request_received", message_count=len(request.messages))
 
-        # TODO: 实现实际的聊天逻辑
-        # 1. 验证配额
-        # 2. 调用AgentService
-        # 3. 扣除配额
-        # 4. 返回响应
+        if not request.messages:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="消息不能为空"
+            )
 
-        # 临时模拟响应
-        last_message = request.messages[-1].content if request.messages else ""
+        # 使用LLM工厂创建LLM实例（默认使用配置的质谱GLM-4.7）
+        llm = LLMFactory.get_default_llm(
+            temperature=request.temperature or 0.7,
+            max_tokens=request.max_tokens or 2000
+        )
 
+        # 转换消息格式为LangChain格式
+        langchain_messages = []
+        for msg in request.messages:
+            langchain_messages.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+
+        # 调用LLM
+        response_msg = await llm.ainvoke(langchain_messages)
+
+        # 获取响应内容
+        ai_message = response_msg.content
+
+        # 构建响应
         response = ChatResponse(
-            message=f"这是对'{last_message}'的模拟回复。实际实现需要集成AgentService。",
+            message=ai_message,
             usage=Usage(
-                prompt_tokens=50,
-                completion_tokens=30,
-                total_tokens=80
+                prompt_tokens=getattr(response_msg, 'usage_metadata', {}).get('input_tokens', 0) or 0,
+                completion_tokens=getattr(response_msg, 'usage_metadata', {}).get('output_tokens', 0) or 0,
+                total_tokens=getattr(response_msg, 'usage_metadata', {}).get('total_tokens', 0) or 0
             ),
-            model=request.model,
-            quota_remaining=9950
+            model=request.model or "glm-4",
+            quota_remaining=9900
         )
 
         logger.info("chat_response_sent", total_tokens=response.usage.total_tokens)
         return response
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("chat_error", error=str(e), exc_info=True)
         raise HTTPException(

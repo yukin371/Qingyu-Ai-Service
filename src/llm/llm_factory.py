@@ -1,6 +1,6 @@
 """
 LLM 工厂类
-支持多种LLM提供商（OpenAI、Anthropic、Gemini、Zhipu）
+支持多种LLM提供商（OpenAI、Anthropic、Gemini、Zhipu、DeepSeek）
 """
 from typing import Optional
 
@@ -29,7 +29,7 @@ class LLMFactory:
         """创建LLM实例
 
         Args:
-            provider: LLM提供商 (openai, anthropic, gemini, zhipu)
+            provider: LLM提供商 (openai, anthropic, gemini, zhipu, deepseek)
             model: 模型名称
             temperature: 温度参数
             max_tokens: 最大token数
@@ -71,10 +71,17 @@ class LLMFactory:
                 max_tokens=max_tokens,
                 **kwargs,
             )
+        elif provider == "deepseek":
+            return LLMFactory._create_deepseek_llm(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **kwargs,
+            )
         else:
             raise ValueError(
                 f"Unsupported LLM provider: {provider}. "
-                f"Supported: openai, anthropic, gemini, zhipu"
+                f"Supported: openai, anthropic, gemini, zhipu, deepseek"
             )
 
     @staticmethod
@@ -148,6 +155,26 @@ class LLMFactory:
             model=model or settings.zhipu_model,
             api_key=settings.zhipu_api_key,
             base_url=settings.zhipu_base_url,
+            temperature=temperature,
+            max_tokens=max_tokens or 4096,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _create_deepseek_llm(
+        model: str,
+        temperature: float,
+        max_tokens: Optional[int],
+        **kwargs,
+    ) -> ChatOpenAI:
+        """创建DeepSeek LLM实例
+
+        DeepSeek 使用兼容 OpenAI 的 API 格式
+        """
+        return ChatOpenAI(
+            model=model or settings.deepseek_model,
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
             temperature=temperature,
             max_tokens=max_tokens or 4096,
             **kwargs,
