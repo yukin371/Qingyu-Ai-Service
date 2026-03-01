@@ -1,5 +1,5 @@
 """文档操作封装"""
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -14,10 +14,10 @@ class Document(BaseModel):
     chapter_num: int
     title: str
     content: str
-    format: str = "markdown"
+    format: Literal["markdown", "html", "text"] = "markdown"
     word_count: int
     version: int
-    status: str = "draft"
+    status: Literal["draft", "reviewing", "completed"] = "draft"
     tags: List[str] = []
     created_at: datetime
     updated_at: datetime
@@ -69,8 +69,8 @@ class DocumentOperations:
         chapter_num: int,
         title: str,
         content: str,
-        format: str = "markdown",
-        action: str = "create_or_update"
+        format: Literal["markdown", "html", "text"] = "markdown",
+        action: Literal["create", "update", "create_or_update", "append"] = "create_or_update"
     ) -> Document:
         """
         创建或更新文档
