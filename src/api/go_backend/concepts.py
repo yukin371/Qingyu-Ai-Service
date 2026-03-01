@@ -6,13 +6,16 @@ from datetime import datetime
 from .client import GoBackendClient
 from .exceptions import ConceptNotFoundError
 
+# 概念分类类型别名
+ConceptCategory = Literal["magic", "location", "character", "item", "organization", "event", "other"]
+
 
 class Concept(BaseModel):
     """概念模型"""
     id: str
     project_id: str
     name: str
-    category: Literal["magic", "location", "character", "item", "organization", "event", "other"]
+    category: ConceptCategory
     content: str
     tags: List[str] = []
     related_docs: List[str] = []
@@ -64,7 +67,7 @@ class ConceptOperations:
         user_id: str,
         project_id: str,
         name: str,
-        category: str,
+        category: ConceptCategory,
         content: str,
         tags: List[str] = [],
         related_docs: List[str] = []
@@ -105,7 +108,7 @@ class ConceptOperations:
         project_id: str,
         concept_id: str,
         name: Optional[str] = None,
-        category: Optional[str] = None,
+        category: Optional[ConceptCategory] = None,
         content: Optional[str] = None,
         tags: Optional[List[str]] = None,
         related_docs: Optional[List[str]] = None
@@ -174,7 +177,7 @@ class ConceptOperations:
         self,
         user_id: str,
         project_id: str,
-        category: Optional[str] = None,
+        category: Optional[ConceptCategory] = None,
         keyword: Optional[str] = None,
         limit: int = 50
     ) -> ConceptListResponse:
