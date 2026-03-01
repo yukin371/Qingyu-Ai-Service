@@ -3,7 +3,7 @@ import httpx
 from typing import Optional, Dict, Any
 from structlog import get_logger
 
-from ....core.config import settings
+from ...core.config import settings
 from .exceptions import (
     GoBackendError,
     AuthError,
