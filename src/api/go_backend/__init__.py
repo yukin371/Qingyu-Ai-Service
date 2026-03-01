@@ -10,6 +10,7 @@ from .exceptions import (
     ValidationError,
     APIError,
 )
+from .documents import Document, DocumentListResponse, DocumentOperations
 
 __all__ = [
     "GoBackendClient",
@@ -20,4 +21,7 @@ __all__ = [
     "ConceptNotFoundError",
     "ValidationError",
     "APIError",
+    "Document",
+    "DocumentListResponse",
+    "DocumentOperations",
 ]
