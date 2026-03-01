@@ -69,8 +69,8 @@ class ConceptOperations:
         name: str,
         category: ConceptCategory,
         content: str,
-        tags: List[str] = [],
-        related_docs: List[str] = []
+        tags: Optional[List[str]] = None,
+        related_docs: Optional[List[str]] = None
     ) -> Concept:
         """
         创建概念
@@ -96,8 +96,8 @@ class ConceptOperations:
                 "name": name,
                 "category": category,
                 "content": content,
-                "tags": tags,
-                "related_docs": related_docs
+                "tags": tags or [],
+                "related_docs": related_docs or []
             }
         )
         return Concept(**data)

@@ -212,13 +212,3 @@ class DocumentTool:
             action="update"
         )
         return f"已更新章节：{doc.title}"
-
-        doc = await self.create_or_update_document(
-            user_id=user_id,
-            project_id=project_id,
-            chapter_num=chapter_num,
-            title=title or doc.title,
-            content=content,
-            action="update"
-        )
-        return f"已更新章节：{doc.title}"

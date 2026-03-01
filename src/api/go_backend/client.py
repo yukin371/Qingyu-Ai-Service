@@ -86,7 +86,9 @@ class GoBackendClient:
             elif response.status_code == 403:
                 raise PermissionError("Access denied")
             elif response.status_code == 404:
-                raise DocumentNotFoundError("Resource not found")
+                if "/concepts" in path:
+                    raise ConceptNotFoundError("Concept not found")
+                raise DocumentNotFoundError("Document not found")
             elif response.status_code == 400:
                 raise ValidationError(response.json().get("error", "Invalid request"))
             elif response.status_code >= 400:
