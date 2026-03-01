@@ -11,6 +11,7 @@ from .exceptions import (
     APIError,
 )
 from .documents import Document, DocumentListResponse, DocumentOperations
+from .concepts import Concept, ConceptListResponse, ConceptOperations
 
 __all__ = [
     "GoBackendClient",
@@ -24,4 +25,7 @@ __all__ = [
     "Document",
     "DocumentListResponse",
     "DocumentOperations",
+    "Concept",
+    "ConceptListResponse",
+    "ConceptOperations",
 ]
