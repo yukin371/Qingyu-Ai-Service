@@ -11,12 +11,11 @@ sys.path.insert(0, str(project_root))
 import pytest
 from fastapi.testclient import TestClient
 
-from src.main import app
-
 
 @pytest.fixture
 def client():
     """FastAPI 测试客户端"""
+    from src.main import app
     return TestClient(app)
 
 
