@@ -1,16 +1,27 @@
-# Qingyu-Ai-Service/src/services/quota_service.py
+"""
+AI 服务配额管理
 
+提供配额消费记录、查询和同步功能
+"""
 import asyncpg
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 import logging
 
-logger = logging.getLogger(__name__)
+from src.core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class QuotaService:
     """AI 服务配额管理"""
 
     def __init__(self, db_pool: asyncpg.Pool):
+        """初始化配额服务
+
+        Args:
+            db_pool: PostgreSQL 连接池
+        """
         self.db = db_pool
 
     async def record_consumption(
@@ -21,6 +32,12 @@ class QuotaService:
         metadata: Dict
     ) -> int:
         """记录配额消费
+
+        Args:
+            user_id: 用户 ID
+            workflow_type: 工作流类型 (chat, writing, creative)
+            tokens_used: 使用的 token 数量
+            metadata: 额外的元数据
 
         Returns:
             int: 记录 ID
@@ -77,7 +94,16 @@ class QuotaService:
         limit: int = 100,
         offset: int = 0
     ) -> List[Dict]:
-        """获取用户消费记录列表"""
+        """获取用户消费记录列表
+
+        Args:
+            user_id: 用户 ID
+            limit: 返回记录数量限制
+            offset: 偏移量
+
+        Returns:
+            List[Dict]: 消费记录列表
+        """
         async with self.db.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT id, user_id, workflow_type, tokens_used,
@@ -133,7 +159,14 @@ class QuotaService:
         tokens: int = 0,
         error: Optional[str] = None
     ):
-        """更新同步状态"""
+        """更新同步状态
+
+        Args:
+            user_id: 用户 ID
+            status: 同步状态 (synced, failed)
+            tokens: 同步的 token 数量
+            error: 错误信息（如果失败）
+        """
         async with self.db.acquire() as conn:
             await conn.execute("""
                 INSERT INTO quota_sync_status (user_id, sync_status, last_sync_tokens, error_message)
