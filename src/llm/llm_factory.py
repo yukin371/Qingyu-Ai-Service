@@ -1,6 +1,6 @@
 """
 LLM 工厂类
-支持多种LLM提供商（OpenAI、Anthropic、Gemini）
+支持多种LLM提供商（OpenAI、Anthropic、Gemini、Zhipu）
 """
 from typing import Optional
 
@@ -29,7 +29,7 @@ class LLMFactory:
         """创建LLM实例
 
         Args:
-            provider: LLM提供商 (openai, anthropic, gemini)
+            provider: LLM提供商 (openai, anthropic, gemini, zhipu)
             model: 模型名称
             temperature: 温度参数
             max_tokens: 最大token数
@@ -64,10 +64,17 @@ class LLMFactory:
                 max_tokens=max_tokens,
                 **kwargs,
             )
+        elif provider == "zhipu":
+            return LLMFactory._create_zhipu_llm(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **kwargs,
+            )
         else:
             raise ValueError(
                 f"Unsupported LLM provider: {provider}. "
-                f"Supported: openai, anthropic, gemini"
+                f"Supported: openai, anthropic, gemini, zhipu"
             )
 
     @staticmethod
@@ -123,6 +130,26 @@ class LLMFactory:
             temperature=temperature,
             max_tokens=max_tokens,
             transport=transport,  # 使用REST避免gRPC被防火墙阻断
+            **kwargs,
+        )
+
+    @staticmethod
+    def _create_zhipu_llm(
+        model: str,
+        temperature: float,
+        max_tokens: Optional[int],
+        **kwargs,
+    ) -> ChatOpenAI:
+        """创建Zhipu AI (质谱) LLM实例
+
+        Zhipu AI 使用兼容 OpenAI 的 API 格式
+        """
+        return ChatOpenAI(
+            model=model or settings.zhipu_model,
+            api_key=settings.zhipu_api_key,
+            base_url=settings.zhipu_base_url,
+            temperature=temperature,
+            max_tokens=max_tokens or 4096,
             **kwargs,
         )
 

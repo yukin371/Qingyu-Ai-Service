@@ -1,6 +1,6 @@
 -- Qingyu-Ai-Service/migrations/create_quota_tables.sql
+-- 创建配额消费记录表
 
--- 配额消费记录表
 CREATE TABLE IF NOT EXISTS quota_consumption_records (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_quota_user_time ON quota_consumption_records(user
 CREATE INDEX IF NOT EXISTS idx_quota_workflow ON quota_consumption_records(workflow_type);
 CREATE INDEX IF NOT EXISTS idx_quota_date ON quota_consumption_records(DATE(consumed_at));
 
--- 配额同步状态表
+-- 创建配额同步状态表
 CREATE TABLE IF NOT EXISTS quota_sync_status (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL UNIQUE,

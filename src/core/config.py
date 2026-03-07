@@ -51,13 +51,21 @@ class Settings(BaseSettings):
         alias="GEMINI_TRANSPORT"
     )  # rest or grpc
 
+    # Zhipu AI (质谱/BigModel)
+    zhipu_api_key: str = Field(default="", alias="ZHIPU_API_KEY")
+    zhipu_base_url: str = Field(
+        default="https://open.bigmodel.cn/api/paas/v4/",
+        alias="ZHIPU_BASE_URL"
+    )
+    zhipu_model: str = Field(default="glm-4", alias="ZHIPU_MODEL")
+
     # Default LLM Provider
     default_llm_provider: str = Field(
-        default="gemini",
+        default="zhipu",
         alias="DEFAULT_LLM_PROVIDER"
-    )  # openai, anthropic, gemini
+    )  # openai, anthropic, gemini, zhipu
     default_llm_model: str = Field(
-        default="gemini-2.0-flash-exp",
+        default="glm-4",
         alias="DEFAULT_LLM_MODEL"
     )
 
