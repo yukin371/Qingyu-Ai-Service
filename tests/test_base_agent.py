@@ -1,12 +1,13 @@
 """
-测试BaseAgent和PipelineStateV2
+测试BaseAgentV2和PipelineStateV2
 
 测试Agent基类和新状态管理的功能。
+更新于v2.0：使用BaseAgentV2作为主基类
 """
 
 import pytest
 import time
-from src.agents.base_agent import BaseAgent, LLMAgentMixin, ExampleAgent
+from src.agents.base_agent import BaseAgentV2
 from src.agents.states.pipeline_state_v2 import (
     PipelineStateV2,
     create_initial_pipeline_state_v2,
