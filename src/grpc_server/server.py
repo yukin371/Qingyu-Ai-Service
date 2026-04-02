@@ -5,7 +5,8 @@ import asyncio
 from concurrent import futures
 
 import grpc
-from grpc_reflection.v1alpha import reflection
+# 反射功能暂时禁用（需要额外依赖）
+# from grpc_reflection.v1alpha import reflection
 
 from ..core import settings, get_logger
 from . import ai_service_pb2, ai_service_pb2_grpc
@@ -37,12 +38,12 @@ async def serve():
         server
     )
 
-    # 启用 gRPC 反射（用于调试）
-    SERVICE_NAMES = (
-        ai_service_pb2.DESCRIPTOR.services_by_name['AIService'].full_name,
-        reflection.SERVICE_NAME,
-    )
-    reflection.enable_server_reflection(SERVICE_NAMES, server)
+    # 启用 gRPC 反射（暂时禁用）
+    # SERVICE_NAMES = (
+    #     ai_service_pb2.DESCRIPTOR.services_by_name['AIService'].full_name,
+    #     reflection.SERVICE_NAME,
+    # )
+    # reflection.enable_server_reflection(SERVICE_NAMES, server)
 
     # 绑定端口
     grpc_port = settings.go_grpc_port + 1  # Python gRPC 端口 = Go gRPC 端口 + 1

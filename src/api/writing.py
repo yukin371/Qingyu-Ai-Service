@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, status
 
-from ..api.models.writing import (
+from src.api.models.writing import (
     WritingContext,
     ContinueWritingRequest,
     PolishRequest,

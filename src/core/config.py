@@ -93,6 +93,10 @@ class Settings(BaseSettings):
     go_grpc_host: str = Field(default="localhost", alias="GO_GRPC_HOST")
     go_grpc_port: int = Field(default=50051, alias="GO_GRPC_PORT")
 
+    # Go Backend HTTP (for internal API calls)
+    go_backend_url: str = Field(default="http://localhost:9090", alias="GO_BACKEND_URL")
+    ai_service_key: str = Field(default="your-secret-key", alias="AI_SERVICE_KEY")
+
     # Redis
     redis_host: str = Field(default="localhost", alias="REDIS_HOST")
     redis_port: int = Field(default=6379, alias="REDIS_PORT")

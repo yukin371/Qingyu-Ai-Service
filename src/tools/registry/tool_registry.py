@@ -3,10 +3,16 @@
 
 管理工具的注册、查找和获取
 """
-from typing import Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Type
+
+from langchain_core.tools import StructuredTool
 
 from src.core.logger import get_logger
 from src.tools.base import BaseTool, ToolCategory, ToolMetadata
+
+if TYPE_CHECKING:
+    from src.api.go_backend import GoBackendClient
+    from src.tools.content import DocumentTool, ConceptTool
 
 logger = get_logger(__name__)
 
@@ -17,13 +23,59 @@ class ToolRegistry:
     管理所有可用工具的注册和查找
     """
 
-    def __init__(self):
-        """初始化注册中心"""
+    def __init__(self, go_client: Optional["GoBackendClient"] = None):
+        """初始化注册中心
+
+        Args:
+            go_client: Go后端客户端（可选）
+        """
         self._tools: Dict[str, Type[BaseTool]] = {}
         self._tool_instances: Dict[str, BaseTool] = {}
         self._tool_metadata: Dict[str, ToolMetadata] = {}
 
+        # LangChain工具支持
+        self._langchain_tools: List[StructuredTool] = []
+        self._content_tools_initialized = False
+
+        # Go后端客户端
+        self._go_client: Optional["GoBackendClient"] = go_client
+
         logger.info("Tool registry initialized")
+
+        # 如果提供了Go客户端，初始化内容工具
+        if self._go_client is not None:
+            self._register_content_tools()
+
+    def _register_content_tools(self) -> None:
+        """注册内容管理工具（LangChain工具）"""
+        if self._content_tools_initialized or self._go_client is None:
+            return
+
+        try:
+            from ..content import DocumentTool, ConceptTool
+
+            # 创建工具实例
+            document_tool = DocumentTool(self._go_client)
+            concept_tool = ConceptTool(self._go_client)
+
+            # 获取LangChain工具
+            doc_tools = document_tool.get_langchain_tools()
+            concept_tools = concept_tool.get_langchain_tools()
+
+            # 存储LangChain工具
+            self._langchain_tools.extend(doc_tools)
+            self._langchain_tools.extend(concept_tools)
+
+            self._content_tools_initialized = True
+
+            logger.info(
+                f"Content tools registered: {len(doc_tools)} document tools, "
+                f"{len(concept_tools)} concept tools"
+            )
+        except ImportError as e:
+            logger.warning(f"Failed to import content tools: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register content tools: {e}")
 
     # ===== 注册工具 =====
 
@@ -124,6 +176,14 @@ class ToolRegistry:
 
     # ===== 获取工具 =====
 
+    def get_langchain_tools(self) -> List[StructuredTool]:
+        """获取所有LangChain工具
+
+        Returns:
+            List[StructuredTool]: LangChain工具列表
+        """
+        return self._langchain_tools.copy()
+
     def get_tool_class(self, tool_name: str) -> Optional[Type[BaseTool]]:
         """获取工具类
 
@@ -183,6 +243,15 @@ class ToolRegistry:
 
         logger.info(f"Tool instance created: {tool_name}")
         return instance
+
+    def set_go_client(self, go_client: "GoBackendClient") -> None:
+        """设置Go后端客户端并注册内容工具
+
+        Args:
+            go_client: Go后端客户端
+        """
+        self._go_client = go_client
+        self._register_content_tools()
 
     # ===== 查询工具 =====
 

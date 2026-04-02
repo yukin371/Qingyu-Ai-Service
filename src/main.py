@@ -9,11 +9,11 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from .core import settings, get_logger, AIServiceException
-from .api.health import router as health_router
-from .api.chat import router as chat_router
-from .api.writing import router as writing_router
-from .api.quota import router as quota_router
+from src.core import settings, get_logger, AIServiceException
+from src.api.health import router as health_router
+from src.api.chat import router as chat_router
+from src.api.writing import router as writing_router
+from src.api.quota import router as quota_router
 
 logger = get_logger(__name__)
 
