@@ -9,7 +9,7 @@ from concurrent import futures
 import grpc
 
 from src.core.logger import get_logger
-from src.agents.specialized import OutlineAgent, CharacterAgent, PlotAgent
+from src.agents.specialized import OutlineAgent, CharacterAgent, PlotAgent, StoryWriterAgent
 from src.agents.states.pipeline_state_v2 import create_initial_pipeline_state_v2
 from src.grpc_service.converters import (
     outline_dict_to_proto_data,
@@ -48,6 +48,7 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
         self.outline_agent = None
         self.character_agent = None
         self.plot_agent = None
+        self.story_writer_agent = None
         self._initialize_agents()
         self._initialize_quota_service()
 
@@ -83,6 +84,12 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
                 llm_provider="zhipu",
                 llm_model="glm-4-flash",
                 temperature=0.7
+            )
+            self.story_writer_agent = StoryWriterAgent(
+                llm_provider="zhipu",
+                llm_model="glm-4-flash",
+                temperature=0.8,
+                max_tokens=2000
             )
             self.logger.info("✅ Phase3 Agents初始化成功 (智谱AI GLM-4-Flash)")
         except Exception as e:
@@ -411,6 +418,56 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
                 f"情节生成失败: {str(e)}"
             )
 
+    async def StoryWrite(self, request, context):
+        """
+        故事上下文写作
+
+        Args:
+            request: StoryContextRequest
+            context: gRPC context
+
+        Returns:
+            StoryContextResponse
+        """
+        start_time = time.time()
+
+        try:
+            self.logger.info(
+                f"📝 故事写作 - project={request.project_id}, "
+                f"document={request.document_id}, mode={request.mode}"
+            )
+
+            # 执行 StoryWriterAgent
+            result = await self.story_writer_agent.execute(
+                prompt=request.assembled_prompt,
+                max_tokens=request.options.max_tokens if request.options else 2000,
+                temperature=request.options.temperature if request.options else 0.8,
+            )
+
+            execution_time = time.time() - start_time
+
+            self.logger.info(
+                f"✅ 故事写作完成 - {len(result.get('content', ''))} 字符, "
+                f"耗时: {execution_time:.2f}秒"
+            )
+
+            # 构建响应
+            response = ai_service_pb2.StoryContextResponse(
+                content=result.get("content", ""),
+                tokens_used=result.get("tokens_used", 0),
+                model=result.get("model", "zhipu/glm-4-flash"),
+                generated_at=int(time.time()),
+            )
+
+            return response
+
+        except Exception as e:
+            self.logger.error(f"❌ 故事写作失败: {e}")
+            context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"故事写作失败: {str(e)}"
+            )
+
     def _proto_outline_to_dict(self, outline_proto) -> Dict[str, Any]:
         """将protobuf Outline消息转换为Python字典"""
         chapters = []
@@ -523,6 +580,7 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
                 "outline_agent": "healthy" if self.outline_agent else "unhealthy",
                 "character_agent": "healthy" if self.character_agent else "unhealthy",
                 "plot_agent": "healthy" if self.plot_agent else "unhealthy",
+                "story_writer_agent": "healthy" if self.story_writer_agent else "unhealthy",
             }
 
             all_healthy = all(status == "healthy" for status in checks.values())
