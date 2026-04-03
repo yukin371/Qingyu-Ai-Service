@@ -86,8 +86,8 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
                 temperature=0.7
             )
             self.story_writer_agent = StoryWriterAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider="deepseek",
+                llm_model="deepseek-chat",
                 temperature=0.8,
                 max_tokens=2000
             )
@@ -463,9 +463,12 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
 
         except Exception as e:
             self.logger.error(f"❌ 故事写作失败: {e}")
-            context.abort(
-                grpc.StatusCode.INTERNAL,
-                f"故事写作失败: {str(e)}"
+            # 返回包含错误信息的空响应，避免NoneType序列化问题
+            return ai_service_pb2.StoryContextResponse(
+                content="",
+                tokens_used=0,
+                model="error",
+                generated_at=int(time.time()),
             )
 
     def _proto_outline_to_dict(self, outline_proto) -> Dict[str, Any]:

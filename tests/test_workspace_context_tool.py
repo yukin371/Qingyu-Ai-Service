@@ -115,6 +115,81 @@ class TestContextBuilder:
         assert isinstance(context.outline_nodes, list)
 
     @pytest.mark.asyncio
+    async def test_build_with_go_internal_context_api(self):
+        """测试通过内部上下文API加载真实结构数据"""
+        from src.tools.workspace.task_analyzer import TaskContext
+
+        class MockGoAPIClient:
+            async def call_api(self, method, endpoint, **kwargs):
+                assert method == "GET"
+                if endpoint.endswith("/context"):
+                    return {
+                        "id": "proj_123",
+                        "title": "星海远征",
+                        "writingType": "sci-fi",
+                        "status": "writing",
+                        "settings": {"era": "interstellar", "tone": "epic"},
+                    }
+                if endpoint.endswith("/characters"):
+                    return {
+                        "characters": [
+                            {
+                                "id": "char_1",
+                                "name": "林澈",
+                                "role": "主角",
+                                "traits": ["冷静", "固执"],
+                                "description": "舰队指挥官",
+                            }
+                        ]
+                    }
+                if endpoint.endswith("/outline"):
+                    return {
+                        "outline": [
+                            {
+                                "id": "node_1",
+                                "title": "第一章",
+                                "level": 1,
+                                "summary": "舰队启航",
+                                "documentId": "chapter_1",
+                            }
+                        ]
+                    }
+                if endpoint.endswith("/relations"):
+                    return {
+                        "relations": [
+                            {
+                                "id": "rel_1",
+                                "fromId": "char_1",
+                                "toId": "char_2",
+                                "type": "ally",
+                                "strength": 80,
+                            }
+                        ]
+                    }
+                if endpoint.endswith("/documents/chapter_1/content"):
+                    return {
+                        "content": "舰桥灯光逐渐亮起，远征舰即将跃迁。",
+                        "wordCount": 18,
+                    }
+                raise AssertionError(f"Unexpected endpoint: {endpoint}")
+
+        builder = ContextBuilder(go_api_client=MockGoAPIClient())
+        task_context = TaskContext(
+            task_type=TaskType.CONTINUE_WRITING,
+            project_id="proj_123",
+            target_id="chapter_1",
+        )
+
+        context = await builder.build(task_context)
+
+        assert context.project_info["title"] == "星海远征"
+        assert context.project_info["genre"] == "sci-fi"
+        assert context.project_info["settings"]["era"] == "interstellar"
+        assert context.previous_content == "舰桥灯光逐渐亮起，远征舰即将跃迁。"
+        assert context.characters[0]["name"] == "林澈"
+        assert context.outline_nodes[0]["title"] == "第一章"
+
+    @pytest.mark.asyncio
     async def test_to_prompt_context(self):
         """测试转换为提示词上下文"""
         from src.tools.workspace.context_builder import StructuredContext

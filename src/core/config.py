@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     # Go Backend gRPC
     go_grpc_host: str = Field(default="localhost", alias="GO_GRPC_HOST")
     go_grpc_port: int = Field(default=50051, alias="GO_GRPC_PORT")
+    go_backend_url: str = Field(default="http://localhost:9090", alias="GO_BACKEND_URL")
+    ai_service_internal_api_key: str = Field(default="", alias="AI_SERVICE_KEY")
 
     # CORS
     cors_allowed_origins: str = Field(

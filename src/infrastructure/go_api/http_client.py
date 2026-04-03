@@ -44,6 +44,7 @@ class GoAPIClient:
         self.base_url = (base_url or settings.go_backend_url).rstrip("/")
         self.timeout = ClientTimeout(total=timeout)
         self.max_retries = max_retries
+        self.internal_api_key = settings.ai_service_internal_api_key.strip()
         self._session: Optional[ClientSession] = None
 
         logger.info(
@@ -122,6 +123,8 @@ class GoAPIClient:
             request_headers["X-Agent-Call-ID"] = agent_call_id
         if headers:
             request_headers.update(headers)
+        if self.internal_api_key and "X-AI-Service-Key" not in request_headers:
+            request_headers["X-AI-Service-Key"] = self.internal_api_key
 
         # 重试逻辑
         last_error = None

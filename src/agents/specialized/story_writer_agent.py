@@ -7,8 +7,9 @@ import time
 from typing import Any, Dict, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 
-from src.agents.base_agent_v2 import BaseAgentV2
+from src.agents.base_agent_v2 import BaseAgentV2, PipelineStateV2
 from src.core.logger import get_logger
 from src.llm.llm_factory import LLMFactory
 
@@ -25,8 +26,8 @@ class StoryWriterAgent(BaseAgentV2):
 
     def __init__(
         self,
-        llm_provider: str = "zhipu",
-        llm_model: str = "glm-4-flash",
+        llm_provider: str = "deepseek",
+        llm_model: str = "deepseek-chat",
         temperature: float = 0.8,
         max_tokens: int = 2000,
     ):
@@ -39,11 +40,15 @@ class StoryWriterAgent(BaseAgentV2):
             temperature: 温度参数（越高越有创造性）
             max_tokens: 最大生成 token 数
         """
-        super().__init__(name="StoryWriterAgent")
+        super().__init__(name="StoryWriterAgent", description="基于三层上下文的故事写作Agent")
         self.llm_provider = llm_provider
         self.llm_model = llm_model
         self.temperature = temperature
         self.max_tokens = max_tokens
+
+    def get_runnable(self) -> Runnable[PipelineStateV2, PipelineStateV2]:
+        """获取LangChain Runnable（暂未实现）"""
+        raise NotImplementedError("StoryWriterAgent暂未实现LangChain Runnable接口")
 
     async def execute(
         self,
@@ -69,15 +74,17 @@ class StoryWriterAgent(BaseAgentV2):
         start_time = time.time()
 
         try:
-            # 获取 LLM 实例
-            llm = LLMFactory.get_llm(
-                provider=self.llm_provider,
-                model=self.llm_model
-            )
-
             # 设置参数
             effective_max_tokens = max_tokens or self.max_tokens
             effective_temperature = temperature or self.temperature
+
+            # 获取 LLM 实例
+            llm = LLMFactory.create_llm(
+                provider=self.llm_provider,
+                model=self.llm_model,
+                temperature=effective_temperature,
+                max_tokens=effective_max_tokens,
+            )
 
             # 构建消息
             messages = [

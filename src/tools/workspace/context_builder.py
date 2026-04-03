@@ -216,14 +216,24 @@ class ContextBuilder:
             return {"id": project_id, "title": "Unknown"}
 
         try:
-            # TODO: 调用Go API获取项目信息
-            # project = await self.go_api_client.get_project(project_id)
-            # return project
+            response = await self.go_api_client.call_api(
+                method="GET",
+                endpoint=f"/api/v1/internal/projects/{project_id}/context",
+            )
+            project = self._unwrap_response(response)
+            if not project:
+                raise ValueError("empty project context response")
+
             return {
-                "id": project_id,
-                "title": "示例项目",
-                "genre": "奇幻",
-                "status": "writing"
+                "id": project.get("id", project_id),
+                "title": project.get("title", "Unknown"),
+                "genre": project.get("writingType") or project.get("genre"),
+                "status": project.get("status", "unknown"),
+                "summary": project.get("summary", ""),
+                "category": project.get("category", ""),
+                "tags": project.get("tags", []),
+                "statistics": project.get("statistics", {}),
+                "settings": project.get("settings", {}),
             }
         except Exception as e:
             self.logger.error("Failed to fetch project info", error=str(e))
@@ -329,8 +339,15 @@ class ContextBuilder:
         chapter_id: str
     ) -> Optional[str]:
         """获取前序内容"""
-        # TODO: 实现实际的API调用
-        return None
+        chapter = await self._fetch_chapter(project_id, chapter_id)
+        if not chapter:
+            return None
+
+        content = chapter.get("content") or ""
+        if not content:
+            return None
+
+        return content
 
     async def _fetch_relevant_characters(
         self,
@@ -338,8 +355,38 @@ class ContextBuilder:
         context_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """获取相关角色"""
-        # TODO: 实现实际的API调用
-        return []
+        if not self.go_api_client:
+            return []
+
+        try:
+            response = await self.go_api_client.call_api(
+                method="GET",
+                endpoint=f"/api/v1/internal/projects/{project_id}/characters",
+            )
+            payload = self._unwrap_response(response)
+            characters = payload.get("characters", []) if isinstance(payload, dict) else []
+
+            result = []
+            for character in characters:
+                if not isinstance(character, dict):
+                    continue
+                result.append({
+                    "id": character.get("id", ""),
+                    "name": character.get("name", "N/A"),
+                    "role": character.get("role", ""),
+                    "traits": character.get("traits", []) or [],
+                    "description": character.get("description", ""),
+                    "summary": character.get("summary", ""),
+                })
+            return result
+        except Exception as e:
+            self.logger.error(
+                "Failed to fetch relevant characters",
+                project_id=project_id,
+                context_id=context_id,
+                error=str(e),
+            )
+            return []
 
     async def _fetch_outline_nodes(
         self,
@@ -347,24 +394,96 @@ class ContextBuilder:
         chapter_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """获取大纲节点"""
-        # TODO: 实现实际的API调用
-        return []
+        if not self.go_api_client:
+            return []
+
+        try:
+            response = await self.go_api_client.call_api(
+                method="GET",
+                endpoint=f"/api/v1/internal/projects/{project_id}/outline",
+            )
+            payload = self._unwrap_response(response)
+            nodes = payload.get("outline", []) if isinstance(payload, dict) else []
+
+            result = []
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                result.append({
+                    "id": node.get("id", ""),
+                    "title": node.get("title", "N/A"),
+                    "parentId": node.get("parentId", ""),
+                    "level": node.get("level", 1),
+                    "order": node.get("order", 0),
+                    "summary": node.get("summary", ""),
+                    "type": node.get("type", ""),
+                    "tension": node.get("tension", 0),
+                    "documentId": node.get("documentId", ""),
+                    "characters": node.get("characters", []) or [],
+                    "tags": node.get("tags", []) or [],
+                })
+            return result
+        except Exception as e:
+            self.logger.error(
+                "Failed to fetch outline nodes",
+                project_id=project_id,
+                chapter_id=chapter_id,
+                error=str(e),
+            )
+            return []
 
     async def _fetch_world_settings(
         self,
         project_id: str
     ) -> List[Dict[str, Any]]:
         """获取世界观设定"""
-        # TODO: 实现实际的API调用
-        return []
+        project_info = await self._fetch_project_info(project_id)
+        settings = project_info.get("settings", {})
+        if not isinstance(settings, dict):
+            return []
+
+        result = []
+        for key, value in settings.items():
+            if value in (None, "", [], {}):
+                continue
+            result.append({
+                "category": key,
+                "content": str(value),
+            })
+        return result
 
     async def _fetch_character_relations(
         self,
         project_id: str
     ) -> List[Dict[str, Any]]:
         """获取角色关系"""
-        # TODO: 实现实际的API调用
-        return []
+        if not self.go_api_client:
+            return []
+
+        try:
+            response = await self.go_api_client.call_api(
+                method="GET",
+                endpoint=f"/api/v1/internal/projects/{project_id}/relations",
+            )
+            payload = self._unwrap_response(response)
+            relations = payload.get("relations", []) if isinstance(payload, dict) else []
+
+            result = []
+            for relation in relations:
+                if not isinstance(relation, dict):
+                    continue
+                result.append({
+                    "id": relation.get("id", ""),
+                    "fromId": relation.get("fromId", ""),
+                    "toId": relation.get("toId", ""),
+                    "type": relation.get("type", ""),
+                    "strength": relation.get("strength", 0),
+                    "notes": relation.get("notes", ""),
+                })
+            return result
+        except Exception as e:
+            self.logger.error("Failed to fetch character relations", project_id=project_id, error=str(e))
+            return []
 
     async def _fetch_chapter(
         self,
@@ -372,8 +491,32 @@ class ContextBuilder:
         chapter_id: str
     ) -> Optional[Dict[str, Any]]:
         """获取章节信息"""
-        # TODO: 实现实际的API调用
-        return None
+        if not self.go_api_client:
+            return None
+
+        try:
+            response = await self.go_api_client.call_api(
+                method="GET",
+                endpoint=f"/api/v1/internal/documents/{chapter_id}/content",
+            )
+            payload = self._unwrap_response(response)
+            if not isinstance(payload, dict):
+                return None
+
+            return {
+                "id": chapter_id,
+                "projectId": project_id,
+                "content": payload.get("content", ""),
+                "wordCount": payload.get("wordCount", 0),
+            }
+        except Exception as e:
+            self.logger.error(
+                "Failed to fetch chapter",
+                project_id=project_id,
+                chapter_id=chapter_id,
+                error=str(e),
+            )
+            return None
 
     async def _rag_search(
         self,
@@ -397,4 +540,11 @@ class ContextBuilder:
         except Exception as e:
             self.logger.error("RAG search failed", error=str(e))
             return []
+
+    @staticmethod
+    def _unwrap_response(response: Any) -> Any:
+        """兼容带 data 包装和直接返回对象的响应格式。"""
+        if isinstance(response, dict) and "data" in response and response["data"] is not None:
+            return response["data"]
+        return response
 
