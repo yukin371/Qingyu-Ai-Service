@@ -15,6 +15,7 @@ import time
 import structlog
 
 from src.agents.states.pipeline_state_v2 import PipelineStateV2, WorkspaceContext
+from src.core.config import get_settings
 from src.tools.workspace import WorkspaceContextTool
 
 
@@ -42,7 +43,7 @@ class BaseAgent(ABC):
         name: str,
         description: str,
         workspace_tool: Optional[WorkspaceContextTool] = None,
-        llm_model: str = "gpt-4-turbo-preview",
+        llm_model: str = "",
         temperature: float = 0.7
     ):
         """
@@ -52,13 +53,13 @@ class BaseAgent(ABC):
             name: Agent名称
             description: Agent描述
             workspace_tool: 工作区上下文工具
-            llm_model: LLM模型名称
+            llm_model: LLM模型名称（空字符串则从配置读取）
             temperature: 温度参数
         """
         self.name = name
         self.description = description
         self.workspace_tool = workspace_tool or WorkspaceContextTool()
-        self.llm_model = llm_model
+        self.llm_model = llm_model or get_settings().default_llm_model
         self.temperature = temperature
         
         self.logger = logger.bind(agent=name)

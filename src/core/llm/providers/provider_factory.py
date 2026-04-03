@@ -83,7 +83,7 @@ class LLMProviderFactory:
             params["api_key"] = extra_kwargs.get(
                 "api_key", settings.openai_api_key
             )
-            params["model"] = model or settings.default_llm_model or "gpt-4-turbo-preview"
+            params["model"] = model or settings.openai_model
             if settings.openai_base_url:
                 params["base_url"] = settings.openai_base_url
 
@@ -92,7 +92,7 @@ class LLMProviderFactory:
             params["api_key"] = extra_kwargs.get(
                 "api_key", settings.anthropic_api_key
             )
-            params["model"] = model or "claude-3-opus-20240229"
+            params["model"] = model or settings.anthropic_model
 
         # 通用参数
         if "temperature" in extra_kwargs:

@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from concurrent import futures
 import grpc
 
+from src.core.config import get_settings
 from src.core.logger import get_logger
 from src.agents.specialized import OutlineAgent, CharacterAgent, PlotAgent, StoryWriterAgent
 from src.agents.states.pipeline_state_v2 import create_initial_pipeline_state_v2
@@ -69,29 +70,32 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
     def _initialize_agents(self):
         """初始化所有Agent"""
         try:
-            # 使用智谱AI GLM-4-Flash（经济高效）
+            settings = get_settings()
+            default_provider = settings.default_llm_provider
+            default_model = settings.default_llm_model
+
             self.outline_agent = OutlineAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider=default_provider,
+                llm_model=default_model,
                 temperature=0.7
             )
             self.character_agent = CharacterAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider=default_provider,
+                llm_model=default_model,
                 temperature=0.7
             )
             self.plot_agent = PlotAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider=default_provider,
+                llm_model=default_model,
                 temperature=0.7
             )
             self.story_writer_agent = StoryWriterAgent(
-                llm_provider="deepseek",
-                llm_model="deepseek-chat",
+                llm_provider=default_provider,
+                llm_model=default_model,
                 temperature=0.8,
                 max_tokens=2000
             )
-            self.logger.info("✅ Phase3 Agents初始化成功 (智谱AI GLM-4-Flash)")
+            self.logger.info(f"✅ Phase3 Agents初始化成功 (provider={default_provider}, model={default_model})")
         except Exception as e:
             self.logger.error(f"❌ Agent初始化失败: {e}")
             raise

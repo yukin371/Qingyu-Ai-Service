@@ -23,6 +23,7 @@ from src.common.types.agent_types import (
     AgentCapability,
 )
 from src.common.interfaces.tool_interface import ITool
+from src.core.config import get_settings
 
 if TYPE_CHECKING:
     from src.agent_runtime.orchestration.executor import AgentExecutor
@@ -344,6 +345,9 @@ class AgentFactory:
 
     def _register_default_templates(self) -> None:
         """注册默认模板"""
+        settings = get_settings()
+        default_model = settings.default_llm_model
+
         # 写手助手
         writer_template = AgentTemplate(
             name="writer",
@@ -351,7 +355,7 @@ class AgentFactory:
             config=AgentConfig(
                 name="writer",
                 description="Creative writing assistant",
-                model="gpt-4",
+                model=default_model,
                 temperature=0.8,
                 max_tokens=2000,
                 system_prompt="You are a creative writing assistant. Help users with writing tasks.",
@@ -367,7 +371,7 @@ class AgentFactory:
             config=AgentConfig(
                 name="analyst",
                 description="Data analysis assistant",
-                model="gpt-4",
+                model=default_model,
                 temperature=0.3,
                 max_tokens=1500,
                 system_prompt="You are a data analyst. Help users analyze data and provide insights.",
@@ -389,7 +393,7 @@ class AgentFactory:
             config=AgentConfig(
                 name="searcher",
                 description="Web search assistant",
-                model="gpt-4",
+                model=default_model,
                 temperature=0.5,
                 max_tokens=1500,
                 system_prompt="You are a search assistant. Help users find information online.",

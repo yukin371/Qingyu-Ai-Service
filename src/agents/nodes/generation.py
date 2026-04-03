@@ -6,11 +6,11 @@
 from typing import Dict
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
 from src.agents.states.creative_state import CreativeAgentState
 from src.core.config import get_settings
 from src.core.logger import get_logger
+from src.llm.llm_factory import LLMFactory
 
 logger = get_logger(__name__)
 
@@ -33,13 +33,12 @@ async def generation_node(state: CreativeAgentState) -> Dict:
 
     settings = get_settings()
 
-    # 初始化LLM
-    llm = ChatOpenAI(
+    # 初始化LLM（通过工厂创建，配置外置）
+    llm = LLMFactory.create_llm(
+        provider=settings.default_llm_provider,
         model=settings.default_llm_model,
         temperature=0.7,
         max_tokens=2000,
-        api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url,
     )
 
     # 构建系统提示

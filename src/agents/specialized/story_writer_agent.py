@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 
 from src.agents.base_agent_v2 import BaseAgentV2, PipelineStateV2
+from src.core.config import get_settings
 from src.core.logger import get_logger
 from src.llm.llm_factory import LLMFactory
 
@@ -26,8 +27,8 @@ class StoryWriterAgent(BaseAgentV2):
 
     def __init__(
         self,
-        llm_provider: str = "deepseek",
-        llm_model: str = "deepseek-chat",
+        llm_provider: str = "",
+        llm_model: str = "",
         temperature: float = 0.8,
         max_tokens: int = 2000,
     ):
@@ -35,14 +36,15 @@ class StoryWriterAgent(BaseAgentV2):
         初始化故事写作 Agent
 
         Args:
-            llm_provider: LLM 提供商
-            llm_model: LLM 模型
+            llm_provider: LLM 提供商（空字符串则从配置读取）
+            llm_model: LLM 模型（空字符串则从配置读取）
             temperature: 温度参数（越高越有创造性）
             max_tokens: 最大生成 token 数
         """
         super().__init__(name="StoryWriterAgent", description="基于三层上下文的故事写作Agent")
-        self.llm_provider = llm_provider
-        self.llm_model = llm_model
+        settings = get_settings()
+        self.llm_provider = llm_provider or settings.default_llm_provider
+        self.llm_model = llm_model or settings.default_llm_model
         self.temperature = temperature
         self.max_tokens = max_tokens
 

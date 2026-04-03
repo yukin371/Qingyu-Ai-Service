@@ -64,7 +64,7 @@ DEFAULT_WORKFLOW_RETRY_LIMIT = 3
 # LLM Constants
 # =============================================================================
 
-DEFAULT_LLM_MODEL = "gpt-4"
+DEFAULT_LLM_MODEL = None  # 从 config.py 的 settings.default_llm_model 读取
 DEFAULT_LLM_TEMPERATURE = 0.7
 DEFAULT_LLM_MAX_TOKENS = 2000
 
