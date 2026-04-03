@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from .core import settings, get_logger, AIServiceException
+from .core.config import get_settings
 from .api.health import router as health_router
 from .api.chat import router as chat_router
 from .api.writing import router as writing_router
@@ -61,9 +62,16 @@ app = FastAPI(
 )
 
 # 添加 CORS 中间件
+_settings = get_settings()
+allowed_origins = [
+    origin.strip()
+    for origin in _settings.cors_allowed_origins.split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应配置具体域名
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

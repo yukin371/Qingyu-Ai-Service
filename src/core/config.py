@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     go_grpc_host: str = Field(default="localhost", alias="GO_GRPC_HOST")
     go_grpc_port: int = Field(default=50051, alias="GO_GRPC_PORT")
 
+    # CORS
+    cors_allowed_origins: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        alias="CORS_ALLOWED_ORIGINS"
+    )  # 逗号分隔的域名列表
+
     # Redis
     redis_host: str = Field(default="localhost", alias="REDIS_HOST")
     redis_port: int = Field(default=6379, alias="REDIS_PORT")

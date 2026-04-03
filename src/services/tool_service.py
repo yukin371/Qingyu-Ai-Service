@@ -27,6 +27,15 @@ class ToolService:
     - Tool列表查询
     """
 
+    PUBLIC_TOOLS = {
+        "continue_writing", "rewrite_text", "polish_text",
+        "expand_outline", "character_analysis", "summarize_text",
+        "grammar_check", "style_analysis",
+    }
+    ADMIN_TOOLS = {
+        "delete_project", "manage_users", "system_config",
+    }
+
     def __init__(self):
         """初始化服务"""
         self.registry = ToolRegistry()
@@ -260,11 +269,16 @@ class ToolService:
 
     async def _check_permission(
         self,
-        tool_name: str,  # pylint: disable=unused-argument
-        user_id: Optional[str],  # pylint: disable=unused-argument
+        tool_name: str,
+        user_id: Optional[str],
         project_id: Optional[str],  # pylint: disable=unused-argument
     ) -> bool:
         """检查工具执行权限
+
+        MVP 权限策略:
+        - 未认证用户: 拒绝所有
+        - 已认证用户: 允许 PUBLIC_TOOLS
+        - 管理类工具: 需要管理员角色 (MVP 暂时也允许已认证用户)
 
         Args:
             tool_name: 工具名称
@@ -274,8 +288,12 @@ class ToolService:
         Returns:
             是否有权限
         """
-        # TODO: 实现实际的权限检查逻辑
-        # 可以调用Go后端的权限API
+        if not user_id:
+            return False
+
+        if tool_name not in self.PUBLIC_TOOLS and tool_name not in self.ADMIN_TOOLS:
+            return False
+
         return True
 
     def _make_cache_key(
