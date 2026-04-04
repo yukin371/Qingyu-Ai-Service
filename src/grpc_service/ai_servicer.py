@@ -7,11 +7,14 @@ import uuid
 from typing import Dict, Any, Optional
 from concurrent import futures
 import grpc
+import json
 
 from src.core.config import get_settings
 from src.core.logger import get_logger
 from src.agents.specialized import OutlineAgent, CharacterAgent, PlotAgent, StoryWriterAgent
 from src.agents.states.pipeline_state_v2 import create_initial_pipeline_state_v2
+from src.services.agent_service import AgentService
+from src.services.rag_service import RAGService
 from src.grpc_service.converters import (
     outline_dict_to_proto_data,
     characters_dict_to_proto_data,
@@ -46,6 +49,12 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
         self.logger = logger
         self.db_pool = db_pool
         self.backend_client = backend_client
+
+        # 基础服务（用于兼容旧版 gRPC 方法）
+        self.agent_service = AgentService()
+        self.rag_service = RAGService()
+
+        # Phase3 专业 Agent
         self.outline_agent = None
         self.character_agent = None
         self.plot_agent = None
@@ -571,6 +580,196 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             "relationship_network": network,
         }
 
+    # ============ 基础 gRPC 方法（兼容旧版） ============
+
+    async def GenerateContent(
+        self,
+        request: ai_service_pb2.GenerateContentRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.GenerateContentResponse:
+        """生成内容（基础方法）"""
+        self.logger.info(
+            "generate_content_called",
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            prompt_length=len(request.prompt) if request.prompt else 0
+        )
+
+        try:
+            agent_context = {
+                "project_id": request.project_id,
+                "chapter_id": request.chapter_id,
+                "constraints": {
+                    "max_tokens": request.options.max_tokens if request.options else 2000,
+                    "temperature": request.options.temperature if request.options else 0.7,
+                }
+            }
+
+            result = await self.agent_service.execute(
+                agent_type="creative",
+                task=request.prompt or "请继续写作",
+                context=agent_context,
+                tools=["rag_tool"],
+                user_id=None,
+                project_id=request.project_id or None,
+            )
+
+            return ai_service_pb2.GenerateContentResponse(
+                content=result.output,
+                tokens_used=result.metadata.get("tokens_used", 0),
+                model=request.options.model if request.options else "glm-4",
+                generated_at=int(time.time())
+            )
+
+        except Exception as e:
+            self.logger.error("generate_content_failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to generate content: {str(e)}"
+            )
+
+    async def QueryKnowledge(
+        self,
+        request: ai_service_pb2.RAGQueryRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.RAGQueryResponse:
+        """RAG 查询（基础方法）"""
+        self.logger.info(
+            "QueryKnowledge called",
+            query=request.query[:100] if request.query else "",
+            project_id=request.project_id,
+            top_k=request.top_k
+        )
+
+        try:
+            results = await self.rag_service.search(
+                query_text=request.query,
+                project_id=request.project_id,
+                user_id=request.user_id or None,
+                content_types=list(request.content_types) if request.content_types else None,
+                top_k=request.top_k or 5,
+            )
+
+            rag_results = []
+            for result in results:
+                rag_results.append(
+                    ai_service_pb2.RAGResult(
+                        id=result.get("id", ""),
+                        content=result.get("text", ""),
+                        score=result.get("score", 0.0),
+                        doc_type=result.get("doc_type", ""),
+                    )
+                )
+
+            return ai_service_pb2.RAGQueryResponse(
+                results=rag_results,
+                total=len(rag_results)
+            )
+
+        except Exception as e:
+            self.logger.error("QueryKnowledge failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to query knowledge: {str(e)}"
+            )
+
+    async def GetContext(
+        self,
+        request: ai_service_pb2.ContextRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.ContextResponse:
+        """获取工作区上下文（基础方法）"""
+        self.logger.info(
+            "get_context_called",
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            task_type=request.task_type
+        )
+
+        try:
+            # TODO: 实现上下文获取逻辑
+            return ai_service_pb2.ContextResponse(
+                task_type=request.task_type,
+                context=ai_service_pb2.WorkspaceContext(),
+                token_count=0
+            )
+
+        except Exception as e:
+            self.logger.error("get_context_failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to get context: {str(e)}"
+            )
+
+    async def ExecuteAgent(
+        self,
+        request: ai_service_pb2.AgentExecutionRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.AgentExecutionResponse:
+        """执行 Agent 工作流（基础方法）"""
+        self.logger.info(
+            "ExecuteAgent called",
+            workflow_type=request.workflow_type,
+            project_id=request.project_id,
+            task_length=len(request.task),
+        )
+
+        try:
+            agent_context = json.loads(request.context) if request.context else {}
+
+            result = await self.agent_service.execute(
+                agent_type=request.workflow_type,
+                task=request.task,
+                context=agent_context,
+                tools=list(request.tools),
+                user_id=request.user_id or None,
+                project_id=request.project_id or None,
+            )
+
+            return ai_service_pb2.AgentExecutionResponse(
+                execution_id=f"exec-{request.project_id}",
+                status=result.status,
+                result=result.output,
+                errors=[],
+                tokens_used=result.metadata.get("tokens_used", 0),
+            )
+
+        except Exception as e:
+            self.logger.error("ExecuteAgent failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to execute agent: {str(e)}"
+            )
+
+    async def EmbedText(
+        self,
+        request: ai_service_pb2.EmbedRequest,
+        context: grpc.aio.ServicerContext
+    ) -> ai_service_pb2.EmbedResponse:
+        """向量化文本（基础方法）"""
+        self.logger.info(
+            "embed_text_called",
+            num_texts=len(request.texts),
+            model=request.model
+        )
+
+        try:
+            # TODO: 实现向量化逻辑
+            embeddings = []
+            for _ in request.texts:
+                embeddings.append(
+                    ai_service_pb2.Embedding(vector=[], dimension=1024)
+                )
+
+            return ai_service_pb2.EmbedResponse(embeddings=embeddings)
+
+        except Exception as e:
+            self.logger.error("embed_text_failed", error=str(e), exc_info=True)
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to embed text: {str(e)}"
+            )
+
     async def HealthCheck(self, request, context):
         """
         健康检查
@@ -583,14 +782,32 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             HealthCheckResponse
         """
         try:
-            checks = {
+            # Phase3 Agent 健康检查
+            phase3_checks = {
                 "outline_agent": "healthy" if self.outline_agent else "unhealthy",
                 "character_agent": "healthy" if self.character_agent else "unhealthy",
                 "plot_agent": "healthy" if self.plot_agent else "unhealthy",
                 "story_writer_agent": "healthy" if self.story_writer_agent else "unhealthy",
             }
 
-            all_healthy = all(status == "healthy" for status in checks.values())
+            # 基础服务健康检查
+            try:
+                agent_health = await self.agent_service.health_check() if self.agent_service else {"healthy": False}
+                rag_health = await self.rag_service.health_check() if self.rag_service else {"healthy": False}
+                base_checks = {
+                    "agent_service": "ok" if agent_health.get("healthy") else "error",
+                    "rag_service": "ok" if rag_health.get("healthy") else "error",
+                }
+            except Exception as e:
+                self.logger.warning(f"基础服务健康检查失败: {e}")
+                base_checks = {
+                    "agent_service": "error",
+                    "rag_service": "error",
+                }
+
+            # 合并所有检查
+            checks = {**base_checks, **phase3_checks}
+            all_healthy = all(status in ("healthy", "ok") for status in checks.values())
 
             return ai_service_pb2.HealthCheckResponse(
                 status="healthy" if all_healthy else "degraded",

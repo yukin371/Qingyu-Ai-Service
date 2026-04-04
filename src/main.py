@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     # 启动 gRPC Server（在后台运行）
     try:
-        from .grpc_server.server import start_grpc_server
+        from .grpc_service.server import start_grpc_server
         start_grpc_server()
         logger.info("grpc_server_initialized")
     except Exception as e:
