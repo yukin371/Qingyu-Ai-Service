@@ -16,8 +16,8 @@ jobs:
           SUBMODULE: Qingyu-Ai-Service
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "MAIN_REPO_TOKEN not set."
-            exit 1
+            echo "MAIN_REPO_TOKEN not set, skipping dispatch."
+            exit 0
           fi
           curl -sS -X POST \
             -H "Accept: application/vnd.github+json" \
