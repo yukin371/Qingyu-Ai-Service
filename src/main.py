@@ -14,6 +14,7 @@ from src.api.health import router as health_router
 from src.api.chat import router as chat_router
 from src.api.writing import router as writing_router
 from src.api.quota import router as quota_router
+from src.api.story_analysis import router as story_analysis_router
 
 logger = get_logger(__name__)
 
@@ -121,6 +122,7 @@ app.include_router(health_router, prefix="/api/v1", tags=["Health"])
 app.include_router(chat_router, prefix="/api/v1/ai", tags=["Chat"])
 app.include_router(writing_router, prefix="/api/v1/ai", tags=["Writing"])
 app.include_router(quota_router, prefix="/api/v1/quota", tags=["Quota"])
+app.include_router(story_analysis_router, prefix="/api/v1", tags=["StoryAnalysis"])
 
 
 @app.get("/", tags=["Root"])

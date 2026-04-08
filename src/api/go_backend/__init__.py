@@ -12,6 +12,7 @@ from .exceptions import (
 )
 from .documents import Document, DocumentListResponse, DocumentOperations
 from .concepts import Concept, ConceptListResponse, ConceptOperations
+from .change_requests import ChangeRequestOperations, ChangeRequestPayload
 
 __all__ = [
     "GoBackendClient",
@@ -28,4 +29,6 @@ __all__ = [
     "Concept",
     "ConceptListResponse",
     "ConceptOperations",
+    "ChangeRequestOperations",
+    "ChangeRequestPayload",
 ]
