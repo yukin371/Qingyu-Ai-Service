@@ -1,29 +1,36 @@
 """
 聊天API路由
 """
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import Optional
+from fastapi import APIRouter, HTTPException, status
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from src.api.models.chat import ChatRequest, ChatResponse, Message, Usage
-from ..services.agent_service import AgentService
+from src.api.models.chat import ChatRequest, ChatResponse, Usage
+from src.llm.llm_factory import LLMFactory
 from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-# 依赖注入：获取AgentService实例
-async def get_agent_service():
-    """获取AgentService实例"""
-    # TODO: 实现单例或依赖注入
-    return AgentService()
+def _build_langchain_messages(messages):
+    """将 API 消息转换为 LangChain 消息。"""
+    converted = []
+    for message in messages:
+        role = (message.role or "").lower()
+        content = message.content or ""
+
+        if role == "system":
+            converted.append(SystemMessage(content=content))
+        elif role == "assistant":
+            converted.append(AIMessage(content=content))
+        else:
+            converted.append(HumanMessage(content=content))
+
+    return converted
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(
-    request: ChatRequest,
-    agent_service: AgentService = Depends(get_agent_service)
-):
+async def chat(request: ChatRequest):
     """
     AI对话接口
 
@@ -58,24 +65,21 @@ async def chat(
     try:
         logger.info("chat_request_received", message_count=len(request.messages))
 
-        # TODO: 实现实际的聊天逻辑
-        # 1. 验证配额
-        # 2. 调用AgentService
-        # 3. 扣除配额
-        # 4. 返回响应
-
-        # 临时模拟响应
-        last_message = request.messages[-1].content if request.messages else ""
+        llm = LLMFactory.get_default_llm(
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+        )
+        response_msg = await llm.ainvoke(_build_langchain_messages(request.messages))
 
         response = ChatResponse(
-            message=f"这是对'{last_message}'的模拟回复。实际实现需要集成AgentService。",
+            message=response_msg.content if isinstance(response_msg.content, str) else str(response_msg.content),
             usage=Usage(
-                prompt_tokens=50,
-                completion_tokens=30,
-                total_tokens=80
+                prompt_tokens=getattr(response_msg, "usage_metadata", {}).get("input_tokens", 0) or 0,
+                completion_tokens=getattr(response_msg, "usage_metadata", {}).get("output_tokens", 0) or 0,
+                total_tokens=getattr(response_msg, "usage_metadata", {}).get("total_tokens", 0) or 0,
             ),
             model=request.model,
-            quota_remaining=9950
+            quota_remaining=9950,
         )
 
         logger.info("chat_response_sent", total_tokens=response.usage.total_tokens)

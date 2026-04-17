@@ -10,15 +10,18 @@ from src.api.models.fact_extraction import (
     AnalyzeChapterResponse,
     ExtractFactsRequest,
     ExtractFactsResponse,
-    StateChange,
-    RelationChange,
-    NewEntityMention,
-    EventFact,
 )
+from src.api.models.chapter_analysis import (
+    ChangeDetectionRequest,
+    ChangeDetectionResponse,
+    ConsistencyCheckRequest,
+    ConsistencyCheckResponse,
+)
+from src.agents.specialized.consistency_agent import ConsistencyAgent
 from src.agents.specialized.fact_extraction_agent import FactExtractionAgent
 from src.api.go_backend.client import GoBackendClient
 from src.api.go_backend.change_requests import ChangeRequestOperations
-from src.core.logger import get_logger as core_logger
+from src.services.change_detection_service import ChangeDetectionService
 
 logger = get_logger(__name__)
 
@@ -27,8 +30,10 @@ router = APIRouter()
 
 # 全局 Agent 实例（延迟初始化）
 _agent = None
+_consistency_agent = None
 _backend_client = None
 _cr_ops = None
+_change_detection_service = None
 
 
 def _get_agent() -> FactExtractionAgent:
@@ -46,6 +51,22 @@ def _get_cr_ops() -> ChangeRequestOperations:
         _backend_client = GoBackendClient()
         _cr_ops = ChangeRequestOperations(_backend_client)
     return _cr_ops
+
+
+def _get_consistency_agent() -> ConsistencyAgent:
+    """获取章节一致性检查 Agent"""
+    global _consistency_agent
+    if _consistency_agent is None:
+        _consistency_agent = ConsistencyAgent(temperature=0.2)
+    return _consistency_agent
+
+
+def _get_change_detection_service() -> ChangeDetectionService:
+    """获取文本变更检测服务"""
+    global _change_detection_service
+    if _change_detection_service is None:
+        _change_detection_service = ChangeDetectionService()
+    return _change_detection_service
 
 
 @router.post("/story/analyze-chapter", response_model=AnalyzeChapterResponse)
@@ -97,6 +118,94 @@ async def analyze_chapter(request: AnalyzeChapterRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"章节分析失败: {str(e)}",
+        )
+
+
+@router.post("/story/check-consistency", response_model=ConsistencyCheckResponse)
+async def check_consistency(request: ConsistencyCheckRequest):
+    """
+    检查章节一致性
+
+    输入：当前章节正文、前序章节摘要、已知实体状态
+    输出：结构化一致性问题列表
+    """
+    try:
+        logger.info(
+            "check_consistency_request",
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            previous_chapters=len(request.previous_chapters),
+            existing_entities=len(request.existing_entities),
+            text_length=len(request.text),
+        )
+
+        agent = _get_consistency_agent()
+        result = await agent.analyze_chapter(
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            text=request.text,
+            previous_chapters=request.previous_chapters,
+            existing_entities=request.existing_entities,
+        )
+
+        logger.info(
+            "check_consistency_completed",
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            issues=len(result.issues),
+            passed=result.passed,
+        )
+        return result
+
+    except Exception as e:
+        logger.error("check_consistency_error", error=str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"章节一致性检查失败: {str(e)}",
+        )
+
+
+@router.post("/story/detect-changes", response_model=ChangeDetectionResponse)
+async def detect_changes(request: ChangeDetectionRequest):
+    """
+    检测章节文本变更
+
+    输入：同一章节的两个版本正文
+    输出：段落级变更及实体提及变化
+    """
+    try:
+        logger.info(
+            "detect_changes_request",
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            tracked_entities=len(request.tracked_entities),
+            previous_length=len(request.previous_text),
+            current_length=len(request.current_text),
+        )
+
+        service = _get_change_detection_service()
+        result = service.detect_changes(
+            previous_text=request.previous_text,
+            current_text=request.current_text,
+            tracked_entities=request.tracked_entities,
+        )
+
+        logger.info(
+            "detect_changes_completed",
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            changes=len(result.changes),
+            paragraphs_added=result.paragraphs_added,
+            paragraphs_removed=result.paragraphs_removed,
+            paragraphs_modified=result.paragraphs_modified,
+        )
+        return result
+
+    except Exception as e:
+        logger.error("detect_changes_error", error=str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"章节变更检测失败: {str(e)}",
         )
 
 
