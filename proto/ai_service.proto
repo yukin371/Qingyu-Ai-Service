@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package qingyu.ai;
 
-option go_package = "pkg/grpc/pb";
+option go_package = "github.com/yukin371/Qingyu/Qingyu_backend/pkg/grpc/pb";
 
 // AI 服务定义
 service AIService {
@@ -29,6 +29,9 @@ service AIService {
 
   // Phase3: 生成情节
   rpc GeneratePlot(PlotRequest) returns (PlotResponse);
+
+  // 故事上下文写作
+  rpc StoryWrite(StoryContextRequest) returns (StoryContextResponse);
 
   // 向量化文本
   rpc EmbedText(EmbedRequest) returns (EmbedResponse);
@@ -443,5 +446,32 @@ message HealthCheckRequest {}
 message HealthCheckResponse {
   string status = 1;  // healthy, degraded, unhealthy
   map<string, string> checks = 2;
+}
+
+// ============ 故事上下文写作 ============
+
+message StoryContextRequest {
+  string project_id = 1;
+  string document_id = 2;
+  string mode = 3;              // continue | rewrite | suggest
+  string instruction = 4;       // 用户写作指令
+  string selected_text = 5;     // 改写选中文本
+  string assembled_prompt = 6;  // Go后端已组装好的完整prompt
+  GenerateOptions options = 7;
+}
+
+message StoryContextResponse {
+  string content = 1;
+  int32 tokens_used = 2;
+  string model = 3;
+  int64 generated_at = 4;
+  StoryContextStats context_stats = 5;
+}
+
+message StoryContextStats {
+  int32 stage_tokens = 1;
+  int32 outline_tokens = 2;
+  int32 rag_tokens = 3;
+  int32 total_tokens = 4;
 }
 

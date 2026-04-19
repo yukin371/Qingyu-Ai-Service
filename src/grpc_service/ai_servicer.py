@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from concurrent import futures
 import grpc
 
+from src.core import settings
 from src.core.logger import get_logger
 from src.agents.specialized import OutlineAgent, CharacterAgent, PlotAgent
 from src.agents.states.pipeline_state_v2 import create_initial_pipeline_state_v2
@@ -23,6 +24,7 @@ from src.grpc_service.proto_builders import (
     build_plot_proto,
 )
 from src.grpc_service import ai_service_pb2, ai_service_pb2_grpc
+from src.llm.llm_factory import LLMFactory
 
 logger = get_logger(__name__)
 
@@ -68,26 +70,47 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
     def _initialize_agents(self):
         """初始化所有Agent"""
         try:
-            # 使用智谱AI GLM-4-Flash（经济高效）
+            llm_provider, llm_model = self._resolve_llm_config()
+
             self.outline_agent = OutlineAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider=llm_provider,
+                llm_model=llm_model,
                 temperature=0.7
             )
             self.character_agent = CharacterAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider=llm_provider,
+                llm_model=llm_model,
                 temperature=0.7
             )
             self.plot_agent = PlotAgent(
-                llm_provider="zhipu",
-                llm_model="glm-4-flash",
+                llm_provider=llm_provider,
+                llm_model=llm_model,
                 temperature=0.7
             )
-            self.logger.info("✅ Phase3 Agents初始化成功 (智谱AI GLM-4-Flash)")
+            self.logger.info(
+                "✅ Phase3 Agents初始化成功",
+                provider=llm_provider,
+                model=llm_model,
+            )
         except Exception as e:
             self.logger.error(f"❌ Agent初始化失败: {e}")
             raise
+
+    def _resolve_llm_config(self, requested_model: Optional[str] = None) -> tuple[str, str]:
+        """根据本地默认配置解析 LLM 提供商与模型，并兼容旧的智谱模型名。"""
+        provider = settings.default_llm_provider
+        model = requested_model or settings.default_llm_model
+
+        if provider != "zhipu" and model.startswith("glm-"):
+            self.logger.warning(
+                "deprecated_zhipu_model_overridden",
+                requested_model=model,
+                provider=provider,
+                fallback_model=settings.default_llm_model,
+            )
+            model = settings.default_llm_model
+
+        return provider, model
 
     async def ExecuteCreativeWorkflow(self, request, context):
         """
@@ -409,6 +432,85 @@ class AIServicer(ai_service_pb2_grpc.AIServiceServicer):
             context.abort(
                 grpc.StatusCode.INTERNAL,
                 f"情节生成失败: {str(e)}"
+            )
+
+    async def StoryWrite(self, request, context):
+        """
+        故事上下文写作
+        
+        Args:
+            request: StoryContextRequest
+            context: gRPC context
+            
+        Returns:
+            StoryContextResponse
+        """
+        start_time = time.time()
+        
+        try:
+            self.logger.info(f"✍️ 故事写作 - 项目: {request.project_id}, 文档: {request.document_id}, 模式: {request.mode}")
+            
+            # 验证必需参数
+            if not request.assembled_prompt:
+                context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "assembled_prompt 不能为空"
+                )
+            
+            requested_model = request.options.model if request.options.model else None
+            provider, model = self._resolve_llm_config(requested_model=requested_model)
+            temperature = request.options.temperature if request.options.temperature > 0 else 0.7
+            max_tokens = request.options.max_tokens if request.options.max_tokens > 0 else 2000
+
+            llm = LLMFactory.create_llm(
+                provider=provider,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+            self.logger.info(
+                "🤖 调用 LLM",
+                provider=provider,
+                model=model,
+                temperature=temperature,
+            )
+            response_msg = await llm.ainvoke(request.assembled_prompt)
+            generated_content = response_msg.content
+
+            usage_metadata = getattr(response_msg, "usage_metadata", {}) or {}
+            prompt_tokens = usage_metadata.get("input_tokens", 0) or len(request.assembled_prompt) // 2
+            completion_tokens = usage_metadata.get("output_tokens", 0) or len(generated_content) // 2
+            total_tokens = usage_metadata.get("total_tokens", 0) or (prompt_tokens + completion_tokens)
+
+            execution_time = time.time() - start_time
+            generated_at = int(time.time())
+
+            # 构建上下文统计（模拟值，实际应该从后端传递）
+            context_stats = ai_service_pb2.StoryContextStats(
+                stage_tokens=prompt_tokens // 4,
+                outline_tokens=prompt_tokens // 4,
+                rag_tokens=prompt_tokens // 4,
+                total_tokens=prompt_tokens
+            )
+
+            self.logger.info(f"✅ 故事写作完成 - 耗时: {execution_time:.2f}秒, Tokens: {total_tokens}")
+
+            response = ai_service_pb2.StoryContextResponse(
+                content=generated_content,
+                tokens_used=total_tokens,
+                model=model,
+                generated_at=generated_at,
+                context_stats=context_stats
+            )
+
+            return response
+                
+        except Exception as e:
+            self.logger.error(f"❌ 故事写作失败: {e}")
+            context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"故事写作失败: {str(e)}"
             )
 
     def _proto_outline_to_dict(self, outline_proto) -> Dict[str, Any]:

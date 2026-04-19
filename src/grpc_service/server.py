@@ -2,15 +2,18 @@
 gRPC服务器启动脚本 - Phase3 AI服务
 """
 import asyncio
-import grpc
+import threading
 from concurrent import futures
 import sys
 from pathlib import Path
+
+import grpc
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from src.core import settings
 from src.core.logger import get_logger
 from src.grpc_service.ai_servicer import AIServicer
 from src.grpc_service import ai_service_pb2_grpc
@@ -64,6 +67,23 @@ async def serve(host: str = "0.0.0.0", port: int = 50051):
         logger.info("⏹️  收到停止信号，关闭服务器...")
         await server.stop(grace=5)
         logger.info("👋 服务器已关闭")
+
+
+def start_grpc_server(host: str = "0.0.0.0", port: int | None = None):
+    """在后台线程同步拉起 gRPC 服务，供 FastAPI lifespan 调用。"""
+    target_port = port or settings.grpc_port
+
+    def run_server():
+        asyncio.run(serve(host=host, port=target_port))
+
+    thread = threading.Thread(
+        target=run_server,
+        name="qingyu-ai-grpc-server",
+        daemon=True,
+    )
+    thread.start()
+    logger.info("grpc_server_thread_started", host=host, port=target_port)
+    return thread
 
 
 def main():
