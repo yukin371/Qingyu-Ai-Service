@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 
 from langchain_core.runnables import Runnable
 
-from src.agents.base_agent_v2 import BaseAgentV2
+from src.agents.base_agent import BaseAgentV2
 from src.agents.meta.correction_prompt_builder import CorrectionPromptBuilder
 from src.agents.review.diagnostic_report import (
     CorrectionStrategy,

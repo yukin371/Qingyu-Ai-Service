@@ -1,38 +1,23 @@
 """Agents模块
 
 提供Agent实现和工作流
+
+v2.0版本统一使用BaseAgentV2作为基类
 """
 
-# 新版本Agent (v2.0)
-from src.agents.base_agent import BaseAgent
+# v2.0 Agent基类（主版本）
+from src.agents.base_agent import BaseAgentV2
+
+# 专业Agent
 from src.agents.review import ReviewAgentV2
 
-# 旧版本（暂时保留，但不导入有问题的模块）
-# from .nodes import (
-#     finalize_node,
-#     generation_node,
-#     rag_retrieval_node,
-#     review_node,
-#     understand_task_node,
-# )
-# from .states import BaseAgentState, CreativeAgentState, create_initial_creative_state
-# from .workflows import create_creative_workflow, execute_creative_workflow
+# 兼容性别名：BaseAgent -> BaseAgentV2
+BaseAgent = BaseAgentV2
 
 __all__ = [
-    # v2.0 Agents
-    "BaseAgent",
+    # v2.0 Agent基类
+    "BaseAgentV2",
+    "BaseAgent",  # 兼容性别名
+    # 专业Agent
     "ReviewAgentV2",
-    # States (v2.0)
-    # "BaseAgentState",
-    # "CreativeAgentState",
-    # "create_initial_creative_state",
-    # Nodes (v1.0 - deprecated)
-    # "understand_task_node",
-    # "rag_retrieval_node",
-    # "generation_node",
-    # "review_node",
-    # "finalize_node",
-    # Workflows (v1.0 - deprecated)
-    # "create_creative_workflow",
-    # "execute_creative_workflow",
 ]

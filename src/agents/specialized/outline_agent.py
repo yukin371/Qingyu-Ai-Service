@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 
-from src.agents.base_agent_v2 import BaseAgentV2
+from src.agents.base_agent import BaseAgentV2
 from src.agents.states.pipeline_state_v2 import PipelineStateV2, update_agent_output
 from src.core.logger import get_logger
 from src.llm.llm_factory import LLMFactory

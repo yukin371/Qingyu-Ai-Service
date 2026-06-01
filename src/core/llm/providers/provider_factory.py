@@ -6,6 +6,8 @@ from typing import Dict, Any
 from .base_provider import BaseLLMProvider
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
+from .gemini_provider import GeminiProvider
+from .zhipu_provider import ZhipuProvider
 from src.core.logger import get_logger
 from src.core.config import get_settings
 
@@ -21,6 +23,8 @@ class LLMProviderFactory:
     _providers = {
         "openai": OpenAIProvider,
         "anthropic": AnthropicProvider,
+        "gemini": GeminiProvider,
+        "zhipu": ZhipuProvider,
     }
 
     @classmethod
@@ -93,6 +97,23 @@ class LLMProviderFactory:
                 "api_key", settings.anthropic_api_key
             )
             params["model"] = model or "claude-3-opus-20240229"
+
+        # Gemini 参数
+        elif provider == "gemini":
+            params["api_key"] = extra_kwargs.get(
+                "api_key", settings.google_api_key
+            )
+            params["model"] = model or settings.gemini_model
+            params["transport"] = extra_kwargs.get("transport", settings.gemini_transport)
+
+        # Zhipu 参数
+        elif provider == "zhipu":
+            params["api_key"] = extra_kwargs.get(
+                "api_key", settings.zhipu_api_key
+            )
+            params["model"] = model or settings.zhipu_model
+            if settings.zhipu_base_url:
+                params["base_url"] = settings.zhipu_base_url
 
         # 通用参数
         if "temperature" in extra_kwargs:
