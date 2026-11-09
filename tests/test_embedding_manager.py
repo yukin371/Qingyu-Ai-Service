@@ -62,7 +62,7 @@ class TestEmbeddingManager:
         assert "cannot be empty" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    @patch('src.rag.embedding_manager.EmbeddingService')
+    @patch('src.rag.embedding_service.EmbeddingService')
     async def test_local_model_embed_texts(self, mock_embedding_service):
         """测试本地模型文本向量化（Mock）"""
         # 设置Mock
@@ -98,7 +98,7 @@ class TestEmbeddingManager:
         assert manager_openai.get_dimension() == 1536
 
     @pytest.mark.asyncio
-    @patch('src.rag.embedding_manager.EmbeddingService')
+    @patch('src.rag.embedding_service.EmbeddingService')
     async def test_health_check(self, mock_embedding_service):
         """测试健康检查"""
         # 设置Mock

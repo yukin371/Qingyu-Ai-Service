@@ -120,11 +120,12 @@ class EmbeddingManager:
         Raises:
             EmbeddingError: 向量化失败
         """
-        await self._ensure_model_loaded()
-
+        # 空输入先返回：它不需要模型，加载模型反而会去下载权重（CI 里就是在这里挂住）
         if not texts:
             logger.warning("embed_texts_empty_input")
             return []
+
+        await self._ensure_model_loaded()
 
         try:
             logger.info(
@@ -183,13 +184,14 @@ class EmbeddingManager:
         Raises:
             EmbeddingError: 向量化失败
         """
-        await self._ensure_model_loaded()
-
+        # 同上：空查询在校验阶段就该失败，不必先把模型加载起来
         if not query or not query.strip():
             raise EmbeddingError(
                 "Query text cannot be empty",
                 details={"query": query}
             )
+
+        await self._ensure_model_loaded()
 
         try:
             logger.debug(

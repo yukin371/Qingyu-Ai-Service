@@ -54,7 +54,10 @@ htmlcov/
 .tox/
 
 # Models (large files)
-models/
+# 只忽略仓库根下的权重目录。原来写成 `models/` 会匹配任意层级的同名目录，
+# 把 src/api/models 这个源码包一起吞掉（chat.py / writing.py / quota.py 因此
+# 从未进过版本库，master 上 import src.api.models 直接失败）。
+/models/
 *.pth
 *.bin
 *.safetensors

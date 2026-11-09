@@ -74,7 +74,9 @@ class SummaryMemory(BufferMemory):
         self.llm = llm
         self.summary_prompt = summary_prompt or self._default_summary_prompt()
         self.current_summary: Optional[str] = None
-        self._lock = threading.Lock()
+        # 必须是可重入锁：本类的 add_message 先持锁再调 BufferMemory.add_message，
+        # 而后者也会去拿同一把锁，用 Lock 就是自己等自己（测试里表现为永远跑不完）。
+        self._lock = threading.RLock()
 
     def _default_summary_prompt(self) -> str:
         """Get default summarization prompt."""
@@ -97,12 +99,14 @@ Focus on key information, decisions, and outcomes."""
         """
         try:
             with self._lock:
+                # 父类 BufferMemory.add_message 自己就会按 max_messages 截断，
+                # 所以「加完再看长度是否超限」永远不成立（整段摘要逻辑等于死代码）。
+                # 必须在这条消息可能挤掉旧消息之前就判断。
+                if len(self._messages) >= self.max_messages:
+                    self._summarize_older_messages()
+
                 # Add message normally
                 super().add_message(message)
-
-                # Check if we need to summarize
-                if len(self._messages) > self.max_messages:
-                    self._summarize_older_messages()
 
         except (MemoryValidationError, MemoryOperationError):
             raise
