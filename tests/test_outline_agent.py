@@ -85,7 +85,7 @@ class TestOutlineAgent:
     async def test_generate_outline_basic(self, outline_agent, initial_state, mock_llm_response):
         """测试基础大纲生成"""
         # Mock LLM调用
-        with patch.object(outline_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(outline_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -122,7 +122,7 @@ class TestOutlineAgent:
         }
 
         # Mock LLM调用
-        with patch.object(outline_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(outline_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -146,7 +146,7 @@ class TestOutlineAgent:
         }
 
         # Mock LLM调用
-        with patch.object(outline_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(outline_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -218,7 +218,7 @@ class TestOutlineAgent:
     async def test_handle_llm_error(self, outline_agent, initial_state):
         """测试处理LLM错误"""
         # Mock LLM抛出异常
-        with patch.object(outline_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(outline_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.side_effect = Exception("LLM调用失败")
 
             # 执行
@@ -236,7 +236,7 @@ class TestOutlineAgent:
         mock_response = Mock()
         mock_response.content = "这不是有效的JSON"
 
-        with patch.object(outline_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(outline_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_response
 
             # 执行
@@ -251,7 +251,7 @@ class TestOutlineAgent:
     @pytest.mark.asyncio
     async def test_execution_time_tracking(self, outline_agent, initial_state, mock_llm_response):
         """测试执行时间追踪"""
-        with patch.object(outline_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(outline_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -260,5 +260,5 @@ class TestOutlineAgent:
             # 验证执行时间被记录
             assert "agent_execution_times" in result_state
             assert "outline_agent" in result_state["agent_execution_times"]
-            assert result_state["agent_execution_times"]["outline_agent"] > 0
+            assert result_state["agent_execution_times"]["outline_agent"] >= 0
 

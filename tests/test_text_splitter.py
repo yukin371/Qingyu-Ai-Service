@@ -50,7 +50,10 @@ class TestRecursiveCharacterTextSplitter:
             chunk_overlap=10
         )
 
-        text = "第一段内容。\n\n第二段内容。\n\n第三段内容。"
+        # 原用例的文本只有 26 字，比 chunk_size 还短，本来就该整段留下一块；
+        # 要让「按段落切」可验证，每段都得超过 chunk_size。
+        paragraph = "第一段内容。" * 8
+        text = "\n\n".join([paragraph, paragraph, paragraph])
         chunks = splitter.split_text(text)
 
         assert len(chunks) >= 2

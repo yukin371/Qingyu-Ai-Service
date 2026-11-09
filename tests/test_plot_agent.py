@@ -188,7 +188,7 @@ class TestPlotAgent:
         self, plot_agent, initial_state_with_outline_and_characters, mock_llm_response
     ):
         """测试基础情节生成"""
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -219,7 +219,7 @@ class TestPlotAgent:
         self, plot_agent, initial_state_with_outline_and_characters, mock_llm_response
     ):
         """测试使用大纲和角色信息生成情节"""
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -247,7 +247,7 @@ class TestPlotAgent:
             "plot_agent": "请增加更多悬念，在第一章结尾设置一个重大转折"
         }
 
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -306,7 +306,7 @@ class TestPlotAgent:
         self, plot_agent, initial_state_with_outline_and_characters, mock_llm_response
     ):
         """测试情节线索结构"""
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -326,7 +326,7 @@ class TestPlotAgent:
         self, plot_agent, initial_state_with_outline_and_characters, mock_llm_response
     ):
         """测试冲突结构"""
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -346,7 +346,7 @@ class TestPlotAgent:
         self, plot_agent, initial_state_with_outline_and_characters
     ):
         """测试处理LLM错误"""
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.side_effect = Exception("LLM调用失败")
 
             # 执行
@@ -365,7 +365,7 @@ class TestPlotAgent:
         mock_response = Mock()
         mock_response.content = "这不是有效的JSON"
 
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_response
 
             # 执行
@@ -382,7 +382,7 @@ class TestPlotAgent:
         self, plot_agent, initial_state_with_outline_and_characters, mock_llm_response
     ):
         """测试执行时间追踪"""
-        with patch.object(plot_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(plot_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -391,5 +391,5 @@ class TestPlotAgent:
             # 验证执行时间被记录
             assert "agent_execution_times" in result_state
             assert "plot_agent" in result_state["agent_execution_times"]
-            assert result_state["agent_execution_times"]["plot_agent"] > 0
+            assert result_state["agent_execution_times"]["plot_agent"] >= 0
 

@@ -1,8 +1,10 @@
 """
 测试增强审核Agent v2.0
 """
+import json
 import os
 import sys
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -21,6 +23,25 @@ from agents.states.pipeline_state_v2 import PipelineStateV2
 from core.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _diagnostic_report_response(passed: bool, quality_score: int, issues=None) -> Mock:
+    """构造一份结构合法的诊断报告 JSON，冒充 LLM 的返回。
+
+    下面两个用例原本直连真实模型：模型不可达时整条审核链路都判红，测到的其实是网络。
+    改成喂固定报告，考察的是「报告解析 + 状态回填」这一段。
+    """
+    payload = {
+        "passed": passed,
+        "quality_score": quality_score,
+        "issues": issues or [],
+        "correction_strategy": "none" if passed else "incremental_fix",
+        "correction_instructions": [],
+        "affected_agents": [],
+        "reasoning_chain": [],
+        "suggestions_for_improvement": [],
+    }
+    return Mock(content=json.dumps(payload, ensure_ascii=False))
 
 
 # ===== 测试诊断报告数据结构 =====
@@ -145,7 +166,8 @@ def test_diagnostic_report_queries():
 async def test_review_agent_initialization():
     """测试ReviewAgent初始化"""
     # 设置Gemini API Key
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyD-q07WgZPd8mw4f1hVKVw44yXNUWrAuOk"
+    # 真 key 不该写进仓库（历史里那份按已泄漏对待）；这里只要一个占位值让客户端能构造
+    os.environ.setdefault("GOOGLE_API_KEY", "test-key")
     os.environ["DEFAULT_LLM_PROVIDER"] = "gemini"
     os.environ["GEMINI_MODEL"] = "gemini-2.0-flash-exp"
     os.environ["GEMINI_TRANSPORT"] = "rest"
@@ -167,7 +189,8 @@ async def test_review_agent_initialization():
 async def test_review_agent_with_simple_content():
     """测试ReviewAgent审核简单内容"""
     # 设置环境变量
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyD-q07WgZPd8mw4f1hVKVw44yXNUWrAuOk"
+    # 真 key 不该写进仓库（历史里那份按已泄漏对待）；这里只要一个占位值让客户端能构造
+    os.environ.setdefault("GOOGLE_API_KEY", "test-key")
     os.environ["DEFAULT_LLM_PROVIDER"] = "gemini"
 
     agent = ReviewAgentV2()
@@ -208,7 +231,13 @@ async def test_review_agent_with_simple_content():
 
     # 执行审核
     logger.info("Executing ReviewAgent...")
-    result_state = await agent.execute(state)
+    with patch.object(
+        type(agent.llm),
+        "ainvoke",
+        new_callable=AsyncMock,
+        return_value=_diagnostic_report_response(True, 88),
+    ):
+        result_state = await agent.execute(state)
 
     # 验证结果
     assert "review_report" in result_state
@@ -230,7 +259,8 @@ async def test_review_agent_with_simple_content():
 async def test_review_agent_with_problematic_content():
     """测试ReviewAgent审核有问题的内容"""
     # 设置环境变量
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyD-q07WgZPd8mw4f1hVKVw44yXNUWrAuOk"
+    # 真 key 不该写进仓库（历史里那份按已泄漏对待）；这里只要一个占位值让客户端能构造
+    os.environ.setdefault("GOOGLE_API_KEY", "test-key")
     os.environ["DEFAULT_LLM_PROVIDER"] = "gemini"
 
     agent = ReviewAgentV2()
@@ -292,10 +322,34 @@ async def test_review_agent_with_problematic_content():
 
     # 执行审核
     logger.info("Executing ReviewAgent with problematic content...")
-    result_state = await agent.execute(state)
+    with patch.object(
+        type(agent.llm),
+        "ainvoke",
+        new_callable=AsyncMock,
+        return_value=_diagnostic_report_response(
+            False,
+            45,
+            issues=[
+                {
+                    "id": "issue-1",
+                    "severity": "high",
+                    "category": "consistency",
+                    "sub_category": "character",
+                    "title": "李四未经介绍直接出场",
+                    "description": "第三章出现了李四，但前文没有交代这个角色",
+                    "root_cause": "写第三章时漏掉了角色引入",
+                    "affected_entities": ["李四"],
+                    "impact": "读者不知道李四是谁",
+                }
+            ],
+        ),
+    ):
+        result_state = await agent.execute(state)
 
     # 验证结果
     report_dict = result_state["review_report"]
+    assert report_dict["passed"] is False
+    assert report_dict["issues"], "有问题的内容至少要报出一个问题"
 
     logger.info(f"Review completed:")
     logger.info(f"  - Passed: {report_dict['passed']}")
@@ -314,7 +368,8 @@ async def test_review_agent_with_problematic_content():
 async def test_review_agent_error_handling():
     """测试ReviewAgent错误处理"""
     # 设置环境变量
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyD-q07WgZPd8mw4f1hVKVw44yXNUWrAuOk"
+    # 真 key 不该写进仓库（历史里那份按已泄漏对待）；这里只要一个占位值让客户端能构造
+    os.environ.setdefault("GOOGLE_API_KEY", "test-key")
     os.environ["DEFAULT_LLM_PROVIDER"] = "gemini"
 
     agent = ReviewAgentV2()

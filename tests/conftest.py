@@ -2,12 +2,19 @@
 Pytest 配置和共享 fixtures
 """
 import asyncio
+import os
 import sys
 from pathlib import Path
 
 # 将项目根目录添加到Python路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+# 单元测试一律走 mock，但不少 agent 在构造时就会校验密钥，缺了就抛 ValidationError
+# （CI 没有 secret，表现出来是三十多个 error，而不是断言失败）。这里只放占位值，
+# 既不联网也不进生产配置；真跑集成测试时用真实环境变量，setdefault 不会覆盖。
+for _key_env in ("GOOGLE_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"):
+    os.environ.setdefault(_key_env, "test-key")
 
 import httpx
 import pytest

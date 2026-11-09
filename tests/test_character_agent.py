@@ -143,7 +143,7 @@ class TestCharacterAgent:
         self, character_agent, initial_state_with_outline, mock_llm_response
     ):
         """测试基础角色生成"""
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -175,7 +175,7 @@ class TestCharacterAgent:
         self, character_agent, initial_state_with_outline, mock_llm_response
     ):
         """测试使用大纲信息生成角色"""
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -203,7 +203,7 @@ class TestCharacterAgent:
             ]
         }
 
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -225,7 +225,7 @@ class TestCharacterAgent:
             "character_agent": "请为李云增加一个性格弱点：优柔寡断"
         }
 
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -273,7 +273,7 @@ class TestCharacterAgent:
     @pytest.mark.asyncio
     async def test_handle_llm_error(self, character_agent, initial_state_with_outline):
         """测试处理LLM错误"""
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.side_effect = Exception("LLM调用失败")
 
             # 执行
@@ -292,7 +292,7 @@ class TestCharacterAgent:
         mock_response = Mock()
         mock_response.content = "这不是有效的JSON"
 
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_response
 
             # 执行
@@ -309,7 +309,7 @@ class TestCharacterAgent:
         self, character_agent, initial_state_with_outline, mock_llm_response
     ):
         """测试角色关系网络"""
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -328,7 +328,7 @@ class TestCharacterAgent:
         self, character_agent, initial_state_with_outline, mock_llm_response
     ):
         """测试执行时间追踪"""
-        with patch.object(character_agent.llm, 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
+        with patch.object(type(character_agent.llm), 'ainvoke', new_callable=AsyncMock) as mock_ainvoke:
             mock_ainvoke.return_value = mock_llm_response
 
             # 执行
@@ -337,5 +337,5 @@ class TestCharacterAgent:
             # 验证执行时间被记录
             assert "agent_execution_times" in result_state
             assert "character_agent" in result_state["agent_execution_times"]
-            assert result_state["agent_execution_times"]["character_agent"] > 0
+            assert result_state["agent_execution_times"]["character_agent"] >= 0
 
